@@ -26,7 +26,7 @@
   "keywords": [
     "mongoose",
     "plugin",
-    "document creation"
+    "REST"
   ],
   "author": "Jason Cust <jason@centralping.com>",
   "license": "Apache 2.0",
