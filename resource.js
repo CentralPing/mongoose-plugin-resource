@@ -188,7 +188,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Project _id to id since virtuals can't included
+    // Project _id to id since virtuals can't be included
     collParams.project[collPath + '.id'] = '$' + collPath + '._id';
     collParams = _.merge({}, collParams, params);
 
