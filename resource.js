@@ -27,9 +27,6 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
   });
 
   schema.static('readDocs', function readDocs(params, cb) {
-    var Model = this;
-    var query = Model.find();
-
     // Arity check
     if (arguments.length === 1) {
       // MODEL.readDocs(cb)
@@ -37,28 +34,10 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    if (params.select) { query.select(params.select); }
-    if (params.where) { query.where(params.where); }
-    if (params.sort) { query.sort(params.sort); }
-
-    if (_.isObject(params.skip)) {
-      query[params.skip.operator](params.skip.path, params.skip.val);
-    }
-    else if (_.isNumber(params.skip)) {
-      query.skip(params.skip);
-    }
-
-    if (_.isNumber(params.limit)) { query.limit(params.limit); }
-
-    if (params.populate) { query.populate(params.populate); }
-
-    return query.exec(cb);
+    return queryBuilder(this, params).exec(cb);
   });
 
-  schema.static('readDocById', function readDocById(id, params, cb) {
-    var Model = this;
-    var queryParams;
-
+  schema.static('readDocById', function readDocById(docId, params, cb) {
     // Arity check
     if (arguments.length === 2) {
       // readDocById(id, cb)
@@ -66,19 +45,15 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Add where clause for _id match
-    queryParams = _.merge({}, params, {limit: 1, where: {_id: id}});
-
-    return Model.readDocs(queryParams, function readDocsCallBack(err, docs) {
-      return cb(err, docs && docs[0] || null);
+    return queryBuilder(this, params, docId).exec(function readDocByIdCallBack(err, doc) {
+      return cb(err, doc || null);
     });
   });
 
   // Need to fetch and then save a document to trigger MongooseJS middleware hooks
   //   https://github.com/LearnBoost/mongoose/issues/964
-  schema.static('patchDocById', function patchDocById(id, patch, params, cb) {
+  schema.static('patchDocById', function patchDocById(docId, patch, params, cb) {
     var Model = this;
-    var query = Model.findOne().select('_id').where('_id', id);
 
     // Arity check
     if (arguments.length === 3) {
@@ -87,9 +62,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    if (params.where) { query.where(params.where); }
-
-    query.exec(function patchDocByIdFind(err, doc) {
+    return Model.readDocById(docId, params, function patchDocByIdQuery(err, doc) {
       if (err || !doc) { return cb(err, null); }
 
       doc
@@ -103,16 +76,15 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
         delete queryParams.where;
 
-        return Model.readDocById(doc.id, queryParams, cb);
+        return Model.readDocById(docId, queryParams, cb);
       });
     });
   });
 
   // Need to fetch and then remove a document to trigger MongooseJS middleware hooks
   //   https://github.com/LearnBoost/mongoose/issues/964
-  schema.static('destroyDocById', function destroyDocById(id, params, cb) {
+  schema.static('destroyDocById', function destroyDocById(docId, params, cb) {
     var Model = this;
-    var query = Model.findOne().select('_id').where('_id').equals(id);
 
     // Arity check
     if (arguments.length === 2) {
@@ -121,9 +93,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    if (params.where) { query.where(params.where); }
-
-    query.exec(function destroyDocByIdFind(err, doc) {
+    return Model.readDocById(docId, params, function destroyDocByIdQuery(err, doc) {
       if (err || !doc) { return cb(err, null); }
 
       return doc.remove(cb);
@@ -136,7 +106,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
   //   https://github.com/LearnBoost/mongoose/issues/964
   schema.static('createCollDoc', function createCollDoc(docId, collPath, collDoc, params, cb) {
     var Model = this;
-    var collParams;
+    var collParams = {select: {_id: 1}};
 
     // Arity check
     if (arguments.length === 4) {
@@ -145,14 +115,12 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Clone and overwrite select for only _id for performance
-    collParams = _.merge({}, params);
-    collParams.select = {_id: 1};
-
     // Retrieve empty collection for performance
     collParams.select[collPath] = {$slice: 0};
 
-    Model.readDocById(docId, collParams, function readDocByIdCallBack(err, doc) {
+    if (params.where) { collParams.where = params.where; }
+
+    return Model.readDocById(docId, collParams, function readDocByIdCallBack(err, doc) {
       var coll = doc && doc.get(collPath);
 
       if (err || !coll) { return cb(err, null); }
@@ -165,21 +133,14 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return doc.save(function createCollDocSave(err, doc, count) {
         if (err) { return cb(err, null); }
 
-        delete collParams.where;
-        delete collParams.select;
-
-        return Model.readCollDocById(docId, collPath, collDoc.id, collParams, cb);
+        return Model.readCollDocById(docId, collPath, collDoc.id, params, cb);
       });
     });
   });
 
-  // Use aggregate framework since using $elemMatch as a projection mitigates all
-  // other projections in a collection (possible Mongo bug?)
   schema.static('readCollDocs', function readCollDocs(docId, collPath, params, cb) {
     var Model = this;
-    var query = Model.aggregate();
-    var collParams = {where: {_id: ObjectId(docId)}, project: {}};
-    var group = {_id: '$_id'};
+    var queryParams = {select: collPath};
 
     // Arity check
     if (arguments.length === 3) {
@@ -188,41 +149,18 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Project _id to id since virtuals can't be included
-    collParams.project[collPath + '.id'] = '$' + collPath + '._id';
-    collParams = _.merge({}, collParams, params);
+    _.merge(queryParams, params);
 
-    query.match(collParams.where);
-    query.limit(1);
-    query.unwind(collPath);
+    // TODO: utilize aggregation to allow for sorting, paging, etc.
+    // Main issue is once a subdocument is unwound, the returned objects are POJOs
 
-    if (collParams.match) { query.match(collParams.match); }
-    if (collParams.sort) { query.sort(collParams.sort); }
-    if (_.isNumber(collParams.skip)) { query.skip(collParams.skip); }
-    if (_.isNumber(collParams.limit)) { query.limit(collParams.limit); }
-    if (collParams.project) { query.project(collParams.project); }
-
-    group[collPath] = {$push: '$' + collPath};
-    query.group(group);
-
-    return query.exec(function readCollDocsQueryCallBack(err, collDocs) {
-      if (err || !collDocs.length) { return cb(err, null); }
-
-      if (collParams.populate) {
-        return Model.populate(collDocs, collParams.populate, function readCollDocsQueryPopulateCallBack(err, collPopDocs) {
-          if (err || !collPopDocs.length) { return cb(err, null); }
-
-          cb(err, collPopDocs[0][collPath]);
-        });
-      }
-
-      cb(err, collDocs[0][collPath]);
+    return Model.readDocById(docId, queryParams, function readDocByIdCallBack(err, doc) {
+      return cb(err, doc && doc[collPath] || null);
     });
   });
 
   schema.static('readCollDocById', function readCollDocById(docId, collPath, collId, params, cb) {
     var Model = this;
-    var collParams = {match: {}, limit: 1};
 
     // Arity check
     if (arguments.length === 4) {
@@ -231,12 +169,10 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    collParams.match[collPath + '._id'] = ObjectId(collId);
-    collParams = _.merge({}, collParams, params);
-
-    Model.readCollDocs(docId, collPath, collParams, function readCollDocsCallBack(err, doc) {
+    return Model.readCollDocs(docId, collPath, params, function readCollDocsCallBack(err, doc) {
       // Only return the desired subdocument
-      return cb(err, doc && doc[0] || null);
+      // TODO: utilize aggregation to remove overhead of returning entire collection
+      return cb(err, doc && doc.id(collId) || null);
     });
   });
 
@@ -259,18 +195,18 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams = _.merge({}, params, {select: {_id: 1}});
     collParams.select[collPath + '._id'] = 1;
 
-    Model.readDocById(docId, collParams, function patchCollDocByIdCallBack(err, doc) {
-      var collDoc = doc && doc.get(collPath).id(collId);
+    Model.readCollDocById(docId, collPath, collId, collParams, function patchCollDocByIdCallBack(err, collDoc) {
 
       if (err || !collDoc) { return cb(err, null); }
 
       collDoc.set(collPatch);
 
-      return doc.save(function patchCollDocByIdSave(err, doc, count) {
+      return collDoc.parent().save(function patchCollDocByIdSave(err, doc, count) {
         if (err) { return cb(err, null); }
 
+        collParams = _.clone(params, true);
+
         delete collParams.where;
-        delete collParams.select;
 
         return Model.readCollDocById(docId, collPath, collId, collParams, cb);
       });
@@ -296,16 +232,36 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams = _.merge({}, params, {select: {_id: 1}});
     collParams.select[collPath + '._id'] = 1;
 
-    Model.readDocById(docId, collParams, function desctroyCollDocByIdCallBack(err, doc) {
-      var collDoc = doc && doc.get(collPath).id(collId);
-
+    Model.readCollDocById(docId, collPath, collId, collParams, function desctroyCollDocByIdCallBack(err, collDoc) {
       if (err || !collDoc) { return cb(err, null); }
 
-      collDoc.remove();
+        collDoc.remove();
 
-      return doc.save(function readDocByIdCallBack(err, doc) {
+      return collDoc.parent().save(function readDocByIdCallBack(err, doc) {
         return cb(err, collDoc);
       });
     });
   });
 };
+
+function queryBuilder(Model, params, docId) {
+  var query = docId === undefined ? Model.find() : Model.findOne().where('_id', docId);
+  params = params || {};
+
+  if (params.select) { query.select(params.select); }
+  if (params.where) { query.where(params.where); }
+  if (params.sort) { query.sort(params.sort); }
+
+  if (_.isObject(params.skip)) {
+    query[params.skip.operator](params.skip.path, params.skip.val);
+  }
+  else if (_.isNumber(params.skip)) {
+    query.skip(params.skip);
+  }
+
+  if (_.isNumber(params.limit)) { query.limit(params.limit); }
+
+  if (params.populate) { query.populate(params.populate); }
+
+  return query;
+}
