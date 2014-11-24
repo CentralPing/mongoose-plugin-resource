@@ -120,9 +120,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
     if (params.where) { collParams.where = params.where; }
 
-    return Model.readDocById(docId, collParams, function readDocByIdCallBack(err, doc) {
-      var coll = doc && doc.get(collPath);
-
+    return Model.readCollDocs(docId, collPath, collParams, function readDCollDocsCallBack(err, coll) {
       if (err || !coll) { return cb(err, null); }
 
       collDoc = coll.create(collDoc);
@@ -130,7 +128,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       // Add to collection
       coll.push(collDoc);
 
-      return doc.save(function createCollDocSave(err, doc, count) {
+      return collDoc.parent().save(function createCollDocSave(err, doc, count) {
         if (err) { return cb(err, null); }
 
         return Model.readCollDocById(docId, collPath, collDoc.id, params, cb);
@@ -155,7 +153,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     // Main issue is once a subdocument is unwound, the returned objects are POJOs
 
     return Model.readDocById(docId, queryParams, function readDocByIdCallBack(err, doc) {
-      return cb(err, doc && doc[collPath] || null);
+      return cb(err, doc && doc.get(collPath) || null);
     });
   });
 
@@ -169,10 +167,10 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    return Model.readCollDocs(docId, collPath, params, function readCollDocsCallBack(err, doc) {
+    return Model.readCollDocs(docId, collPath, params, function readCollDocsCallBack(err, coll) {
       // Only return the desired subdocument
       // TODO: utilize aggregation to remove overhead of returning entire collection
-      return cb(err, doc && doc.id(collId) || null);
+      return cb(err, coll && coll.id(collId) || null);
     });
   });
 
