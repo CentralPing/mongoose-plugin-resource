@@ -46,7 +46,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     return queryBuilder(this, params, docId).exec(function readDocByIdCallBack(err, doc) {
-      return cb(err, doc || null);
+      return cb(err, doc);
     });
   });
 
@@ -131,14 +131,19 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return collDoc.parent().save(function createCollDocSave(err, doc, count) {
         if (err) { return cb(err, null); }
 
-        return Model.readCollDocById(docId, collPath, collDoc.id, params, cb);
+        collParams = _.clone(params, true);
+
+        delete collParams.where;
+
+        return Model.readCollDocById(docId, collPath, collDoc.id, collParams, cb);
       });
     });
   });
 
   schema.static('readCollDocs', function readCollDocs(docId, collPath, params, cb) {
     var Model = this;
-    var queryParams = {select: collPath};
+    var queryParams = {};
+    var collPathId = {};
 
     // Arity check
     if (arguments.length === 3) {
@@ -149,11 +154,32 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
     _.merge(queryParams, params);
 
+    if (queryParams.select === undefined) {
+      queryParams.select = collPath;
+    }
+    else {
+      // Possible mongoose bug: if subdoc _id is not included with select statement
+      // virtuals/getters will not populate id
+      if (_.isPlainObject(queryParams.select)) {
+        if (_.isPlainObject(queryParams.select[collPath])) {
+          if (queryParams.select[collPath].$slice === undefined) {
+            _.merge(queryParams.select[collPath], {_id: 1});
+          }
+        }
+        else if (queryParams.select[collPath + '._id'] === undefined){
+          collPathId[collPath] = {_id: 1};
+          _.merge(queryParams.select, collPathId);
+        }
+      }
+      else {
+        queryParams.select += ' ' + collPath + '._id';
+      }
+    }
+
     // TODO: utilize aggregation to allow for sorting, paging, etc.
     // Main issue is once a subdocument is unwound, the returned objects are POJOs
-
     return Model.readDocById(docId, queryParams, function readDocByIdCallBack(err, doc) {
-      return cb(err, doc && doc.get(collPath) || null);
+      return cb(err, doc && doc.get(collPath));
     });
   });
 
@@ -170,7 +196,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     return Model.readCollDocs(docId, collPath, params, function readCollDocsCallBack(err, coll) {
       // Only return the desired subdocument
       // TODO: utilize aggregation to remove overhead of returning entire collection
-      return cb(err, coll && coll.id(collId) || null);
+      return cb(err, coll && coll.id(collId));
     });
   });
 
@@ -194,7 +220,6 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams.select[collPath + '._id'] = 1;
 
     Model.readCollDocById(docId, collPath, collId, collParams, function patchCollDocByIdCallBack(err, collDoc) {
-
       if (err || !collDoc) { return cb(err, null); }
 
       collDoc.set(collPatch);
@@ -233,7 +258,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     Model.readCollDocById(docId, collPath, collId, collParams, function desctroyCollDocByIdCallBack(err, collDoc) {
       if (err || !collDoc) { return cb(err, null); }
 
-        collDoc.remove();
+      collDoc.remove();
 
       return collDoc.parent().save(function readDocByIdCallBack(err, doc) {
         return cb(err, collDoc);

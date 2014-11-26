@@ -563,7 +563,7 @@ describe('Mongoose plugin: resource', function () {
   });
 
   describe('with subdocument collections', function () {
-    var params = {};
+    var subdocParams = {};
     var blogIds = [];
     var commentIds = [];
 
@@ -594,7 +594,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createCollDoc` should create a new subdocument with arity of 5', function (done) {
-      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: 'This is my other comment'}, params, function (err, comment) {
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: 'This is my other comment'}, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
@@ -614,7 +614,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocs` should fetch subdocuments with arity of 4', function (done) {
-      BlogAnon.readCollDocs(blogIds[0], 'comments', params, function (err, comments) {
+      BlogAnon.readCollDocs(blogIds[0], 'comments', subdocParams, function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
         expect(comments.length).toBe(2);
@@ -633,7 +633,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocById` should fetch subdocuments with arity of 5', function (done) {
-      BlogAnon.readCollDocById(blogIds[0], 'comments', commentIds[1], params, function (err, comment) {
+      BlogAnon.readCollDocById(blogIds[0], 'comments', commentIds[1], subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBe(commentIds[1]);
@@ -653,7 +653,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchCollDocById` should patch subdocument with arity of 6', function (done) {
-      BlogAnon.patchCollDocById(blogIds[0], 'comments', commentIds[1], {body: 'This is my other update'}, params, function (err, comment) {
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', commentIds[1], {body: 'This is my other update'}, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBe(commentIds[1]);
@@ -884,6 +884,7 @@ describe('Mongoose plugin: resource', function () {
     var blogIds = [];
     var commentIds = [];
     var subdocParams = {
+      select: 'comments.id comments.body comments.created.by',
       populate: [{path: 'comments.created.by', ref: 'User', select: 'displayName'}]
     };
 
