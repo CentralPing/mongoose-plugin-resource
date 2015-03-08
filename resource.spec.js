@@ -49,34 +49,8 @@ describe('Mongoose plugin: resource', function () {
     });
   });
 
-  it('should compile the models with the resource plugin', function (done) {
-    var schema = BlogSchema();
-    var anonSchema = BlogAnonSchema();
-    schema.plugin(resource);
-    anonSchema.plugin(resource);
-
-    expect(Object.keys(schema.statics).length).toBe(10);
-    expect(schema.statics.createDoc).toBeDefined();
-    expect(schema.statics.readDocs).toBeDefined();
-    expect(schema.statics.readDocById).toBeDefined();
-    expect(schema.statics.patchDocById).toBeDefined();
-    expect(schema.statics.destroyDocById).toBeDefined();
-    expect(schema.statics.createCollDoc).toBeDefined();
-    expect(schema.statics.readCollDocs).toBeDefined();
-    expect(schema.statics.readCollDocById).toBeDefined();
-    expect(schema.statics.patchCollDocById).toBeDefined();
-    expect(schema.statics.destroyCollDocById).toBeDefined();
-
-    Blog = model('Blog', schema);
-    BlogAnon = model('BlogAnon', anonSchema);
-
-    expect(Blog).toEqual(jasmine.any(Function));
-    expect(BlogAnon).toEqual(jasmine.any(Function));
-
-    done();
-  });
-
-  it('should save users to DB', function (done) {
+  // Create test users
+  beforeAll(function (done) {
     var User = model('User', UserSchema());
     User.create([{displayName: 'Foo'}, {displayName: 'Bar'}, {displayName: 'FooBar'}], function (err, fooUser, barUser, foobarUser) {
       expect(err).toBe(null);
@@ -111,10 +85,37 @@ describe('Mongoose plugin: resource', function () {
     });
   });
 
+  it('should compile the models with the resource plugin', function (done) {
+    var schema = BlogSchema();
+    var anonSchema = BlogAnonSchema();
+    schema.plugin(resource);
+    anonSchema.plugin(resource);
+
+    expect(Object.keys(schema.statics).length).toBe(10);
+    expect(schema.statics.createDoc).toBeDefined();
+    expect(schema.statics.readDocs).toBeDefined();
+    expect(schema.statics.readDocById).toBeDefined();
+    expect(schema.statics.patchDocById).toBeDefined();
+    expect(schema.statics.destroyDocById).toBeDefined();
+    expect(schema.statics.createCollDoc).toBeDefined();
+    expect(schema.statics.readCollDocs).toBeDefined();
+    expect(schema.statics.readCollDocById).toBeDefined();
+    expect(schema.statics.patchCollDocById).toBeDefined();
+    expect(schema.statics.destroyCollDocById).toBeDefined();
+
+    Blog = model('Blog', schema);
+    BlogAnon = model('BlogAnon', anonSchema);
+
+    expect(Blog).toEqual(jasmine.any(Function));
+    expect(BlogAnon).toEqual(jasmine.any(Function));
+
+    done();
+  });
+
   describe('with no document params', function () {
     var ids = [];
 
-    it('should clear all models from DB', function (done) {
+    beforeAll(function (done) {
       BlogAnon.collection.remove(function () {
         done();
       });
@@ -216,7 +217,7 @@ describe('Mongoose plugin: resource', function () {
   describe('with document owner/group restrictions', function () {
     var ids = [];
 
-    it('should clear all models from DB', function (done) {
+    beforeAll(function (done) {
       Blog.collection.remove(function () {
         done();
       });
@@ -402,7 +403,7 @@ describe('Mongoose plugin: resource', function () {
   describe('with document params', function () {
     var ids = [];
 
-    it('should clear all models from DB', function (done) {
+    beforeAll(function (done) {
       Blog.collection.remove(function () {
         done();
       });
@@ -449,13 +450,14 @@ describe('Mongoose plugin: resource', function () {
       limit: 5
     };
 
-    it('should clear all models from DB', function (done) {
+    beforeAll(function (done) {
       BlogAnon.collection.remove(function () {
         done();
       });
     });
 
-    it('should create a collection', function (done) {
+    // create test collection
+    beforeAll(function (done) {
       BlogAnon.create(Array(20).join('.').split('.').map(function (v, i) {
         // Ensure create dates are unique
         return {title: 'This is blog ' + i, created: {date: (new Date()).setMilliseconds(i)}};
@@ -575,7 +577,7 @@ describe('Mongoose plugin: resource', function () {
     var blogIds = [];
     var commentIds = [];
 
-    it('should clear all documents from DB', function (done) {
+    beforeAll(function (done) {
       BlogAnon.collection.remove(function () {
         done();
       });
@@ -693,7 +695,7 @@ describe('Mongoose plugin: resource', function () {
     var blogIds = [];
     var commentIds = [];
 
-    it('should clear all documents from DB', function (done) {
+    beforeAll(function (done) {
       Blog.collection.remove(function () {
         done();
       });
@@ -896,13 +898,7 @@ describe('Mongoose plugin: resource', function () {
       populate: [{path: 'comments.created.by', ref: 'User', select: 'displayName'}]
     };
 
-    it('should clear all models from DB', function (done) {
-      Blog.collection.remove(function () {
-        done();
-      });
-    });
-
-    it('should clear all documents from DB', function (done) {
+    beforeAll(function (done) {
       Blog.collection.remove(function () {
         done();
       });
@@ -991,7 +987,7 @@ describe('Mongoose plugin: resource', function () {
       limit: 5
     };
 
-    it('should clear all models from DB', function (done) {
+    beforeAll(function (done) {
       BlogAnon.collection.remove(function () {
         done();
       });
