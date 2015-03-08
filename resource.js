@@ -7,22 +7,20 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
   var paths = Object.keys(schema.paths);
 
   // Creates a new document and returns the whitelisted document on success
-  schema.static('createDoc', function createDoc(doc, params, cb) {
+  schema.static('createDoc', function createDoc(obj, params, cb) {
     var Model = this;
 
     // Arity check
     if (arguments.length === 2) {
-      // MODEL.createDoc(doc, cb)
+      // MODEL.createDoc(obj, cb)
       cb = params;
       params = {};
     }
 
-    doc = new Model(doc);
+    return (new Model(obj)).save(function createDocSave(err, newDoc, count) {
+      if (err || count === 0) { return cb(err, null); }
 
-    return doc.save(function createDocSave(err, doc, count) {
-      if (err) { return cb(err, null); }
-
-      return Model.readDocById(doc.id, params, cb);
+      return Model.readDocById(newDoc.id, params, cb);
     });
   });
 
@@ -45,9 +43,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    return queryBuilder(this, params, docId).exec(function readDocByIdCallBack(err, doc) {
-      return cb(err, doc);
-    });
+    return queryBuilder(this, params, docId).exec(cb);
   });
 
   // Need to fetch and then save a document to trigger MongooseJS middleware hooks
@@ -67,12 +63,10 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
       doc
       .set(patch)
-      .save(function patchDocByIdSave(err, doc, count) {
-        var queryParams;
+      .save(function patchDocByIdSave(err, patchedDoc, count) {
+        if (err || count === 0) { return cb(err, null); }
 
-        if (err) { return cb(err, null); }
-
-        queryParams = _.clone(params, true);
+        var queryParams = _.clone(params, true);
 
         delete queryParams.where;
 
@@ -104,7 +98,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
   // Need to fetch and then save a document to trigger MongooseJS middleware hooks
   //   https://github.com/LearnBoost/mongoose/issues/964
-  schema.static('createCollDoc', function createCollDoc(docId, collPath, collDoc, params, cb) {
+  schema.static('createCollDoc', function createCollDoc(docId, collPath, collObj, params, cb) {
     var Model = this;
     var collParams = {select: {_id: 1}};
 
@@ -123,13 +117,13 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     return Model.readCollDocs(docId, collPath, collParams, function readDCollDocsCallBack(err, coll) {
       if (err || !coll) { return cb(err, null); }
 
-      collDoc = coll.create(collDoc);
+      var collDoc = coll.create(collObj);
 
       // Add to collection
       coll.push(collDoc);
 
       return collDoc.parent().save(function createCollDocSave(err, doc, count) {
-        if (err) { return cb(err, null); }
+        if (err || count === 0) { return cb(err, null); }
 
         collParams = _.clone(params, true);
 
@@ -225,7 +219,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       collDoc.set(collPatch);
 
       return collDoc.parent().save(function patchCollDocByIdSave(err, doc, count) {
-        if (err) { return cb(err, null); }
+        if (err || count === 0) { return cb(err, null); }
 
         collParams = _.clone(params, true);
 
@@ -260,7 +254,9 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
       collDoc.remove();
 
-      return collDoc.parent().save(function readDocByIdCallBack(err, doc) {
+      return collDoc.parent().save(function readDocByIdCallBack(err, doc, count) {
+        if (err || count === 0) { return cb(err, null); }
+
         return cb(err, collDoc);
       });
     });
