@@ -59,7 +59,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     return Model.readDocById(docId, params, function patchDocByIdQuery(err, doc) {
-      if (err || !doc) { return cb(err, null); }
+      if (err || doc === null) { return cb(err, doc); }
 
       doc
       .set(patch)
@@ -88,7 +88,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     return Model.readDocById(docId, params, function destroyDocByIdQuery(err, doc) {
-      if (err || !doc) { return cb(err, null); }
+      if (err || doc === null) { return cb(err, doc); }
 
       return doc.remove(cb);
     });
@@ -115,7 +115,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     if (params.where) { collParams.where = params.where; }
 
     return Model.readCollDocs(docId, collPath, collParams, function readDCollDocsCallBack(err, coll) {
-      if (err || !coll) { return cb(err, null); }
+      if (err || coll === null) { return cb(err, coll); }
 
       var collDoc = coll.create(collObj);
 
@@ -214,7 +214,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams.select[collPath + '._id'] = 1;
 
     Model.readCollDocById(docId, collPath, collId, collParams, function patchCollDocByIdCallBack(err, collDoc) {
-      if (err || !collDoc) { return cb(err, null); }
+      if (err || collDoc === null) { return cb(err, collDoc); }
 
       collDoc.set(collPatch);
 
@@ -250,7 +250,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams.select[collPath + '._id'] = 1;
 
     Model.readCollDocById(docId, collPath, collId, collParams, function desctroyCollDocByIdCallBack(err, collDoc) {
-      if (err || !collDoc) { return cb(err, null); }
+      if (err || collDoc === null) { return cb(err, collDoc); }
 
       collDoc.remove();
 
