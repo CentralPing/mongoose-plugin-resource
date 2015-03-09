@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
-var resource = require('./resource');
 var _ = require('lodash-node/modern');
+var faker = require('faker');
+var resource = require('./resource');
 var Schema = mongoose.Schema;
 var connection;
 
@@ -12,20 +13,22 @@ delete require.cache.mongoose;
 
 // Test data
 var blogData = {
-  title: 'My first blog! #Super',
-  blog: 'This is my very first #blog! I hope you enjoy it. #WOOHOO'
+  title: faker.lorem.sentence(),
+  blog: faker.lorem.paragraphs()
 };
 var blogPatch = {
-  blog: 'This is my update.'
+  blog: faker.lorem.paragraphs()
 };
 
 describe('Mongoose plugin: resource', function () {
   var Blog;
   var BlogAnon;
-  var users;
   var blogDataOwners;
   var ownerChecks;
   var ownerGroupChecks;
+  var users = Array(3).join('.').split('.').map(function () {
+    return {displayName: faker.name.findName()};
+  });
   var params = {
     select: 'title blog created.by readers',
     populate: [
@@ -52,33 +55,29 @@ describe('Mongoose plugin: resource', function () {
   // Create test users
   beforeAll(function (done) {
     var User = model('User', UserSchema());
-    User.create([{displayName: 'Foo'}, {displayName: 'Bar'}, {displayName: 'FooBar'}], function (err, fooUser, barUser, foobarUser) {
-      expect(err).toBe(null);
-      users = {
-        fooUser: fooUser,
-        barUser: barUser,
-        foobarUser: foobarUser
-      };
-      blogDataOwners = {
-        fooUser: {created: {by: fooUser.id}},
-        barUser: {created: {by: barUser.id}, readers: [fooUser.id]},
-        foobarUser: {created: {by: foobarUser.id}, readers: [fooUser.id, barUser.id]}
-      };
-      ownerChecks = {
-        fooUser: {where: {'created.by': fooUser.id}},
-        barUser: {where: {'created.by': barUser.id}},
-        foobarUser: {where: {'created.by': foobarUser.id}}
-      };
-      ownerGroupChecks = {
-        fooUser: {where: {$or: [{'created.by': fooUser.id}, {'readers': fooUser.id}]}},
-        barUser: {where: {$or: [{'created.by': barUser.id}, {'readers': barUser.id}]}},
-        foobarUser: {where: {$or: [{'created.by': foobarUser.id}, {'readers': foobarUser.id}]}}
-      };
+    User.create(users, function () {
+      users = Array.prototype.slice.call(arguments, 1);
+
+      blogDataOwners = [
+        {created: {by: users[0].id}},
+        {created: {by: users[1].id}, readers: [users[0].id]},
+        {created: {by: users[2].id}, readers: [users[0].id, users[1].id]}
+      ];
+      ownerChecks = [
+        {where: {'created.by': users[0].id}},
+        {where: {'created.by': users[1].id}},
+        {where: {'created.by': users[2].id}}
+      ];
+      ownerGroupChecks = [
+        {where: {$or: [{'created.by': users[0].id}, {'readers': users[0].id}]}},
+        {where: {$or: [{'created.by': users[1].id}, {'readers': users[1].id}]}},
+        {where: {$or: [{'created.by': users[2].id}, {'readers': users[2].id}]}}
+      ];
 
       Object.keys(blogData).forEach(function (key) {
-        blogDataOwners.fooUser[key] = blogData[key];
-        blogDataOwners.barUser[key] = blogData[key];
-        blogDataOwners.foobarUser[key] = blogData[key];
+        blogDataOwners[0][key] = blogData[key];
+        blogDataOwners[1][key] = blogData[key];
+        blogDataOwners[2][key] = blogData[key];
       });
 
       done();
@@ -223,8 +222,8 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document with owner fooUser', function (done) {
-      Blog.createDoc(blogDataOwners.fooUser, function (err, blog) {
+    it('`createDoc` should create a new document with an owner', function (done) {
+      Blog.createDoc(blogDataOwners[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBeDefined();
@@ -236,8 +235,8 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document with owner barUser', function (done) {
-      Blog.createDoc(blogDataOwners.barUser, function (err, blog) {
+    it('`createDoc` should create a new document with another owner', function (done) {
+      Blog.createDoc(blogDataOwners[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBeDefined();
@@ -249,8 +248,8 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document with owner foobarUser', function (done) {
-      Blog.createDoc(blogDataOwners.foobarUser, function (err, blog) {
+    it('`createDoc` should create a new document with owner', function (done) {
+      Blog.createDoc(blogDataOwners[2], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBeDefined();
@@ -273,7 +272,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocs` should fetch a list of documents with arity of 2 and correct document owner/group', function (done) {
-      Blog.readDocs(ownerGroupChecks.fooUser, function (err, blogs) {
+      Blog.readDocs(ownerGroupChecks[0], function (err, blogs) {
         expect(err).toBe(null);
         expect(blogs).toEqual(jasmine.any(Array));
         expect(blogs.length).toBe(3);
@@ -282,7 +281,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocs` should fetch a list of documents with arity of 2 and correct document owner', function (done) {
-      Blog.readDocs(ownerGroupChecks.barUser, function (err, blogs) {
+      Blog.readDocs(ownerGroupChecks[1], function (err, blogs) {
         expect(err).toBe(null);
         expect(blogs).toEqual(jasmine.any(Array));
         expect(blogs.length).toBe(2);
@@ -291,7 +290,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocs` should fetch a list of documents with arity of 2 and correct document owner', function (done) {
-      Blog.readDocs(ownerGroupChecks.foobarUser, function (err, blogs) {
+      Blog.readDocs(ownerGroupChecks[2], function (err, blogs) {
         expect(err).toBe(null);
         expect(blogs).toEqual(jasmine.any(Array));
         expect(blogs.length).toBe(1);
@@ -311,7 +310,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocById` should not fetch a document with arity of 3 and wrong document owner/group', function (done) {
-      Blog.readDocById(ids[0], ownerGroupChecks.barUser, function (err, blog) {
+      Blog.readDocById(ids[0], ownerGroupChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
         done();
@@ -319,7 +318,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocById` should not fetch a document with arity of 3 and wrong document owner/group', function (done) {
-      Blog.readDocById(ids[0], ownerGroupChecks.barUser, function (err, blog) {
+      Blog.readDocById(ids[0], ownerGroupChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
         done();
@@ -327,7 +326,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocById` should fetch a document with arity of 3 and correct document owner/group', function (done) {
-      Blog.readDocById(ids[0], ownerGroupChecks.fooUser, function (err, blog) {
+      Blog.readDocById(ids[0], ownerGroupChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[0]);
@@ -336,7 +335,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocById` should fetch a document with arity of 3 and correct group', function (done) {
-      Blog.readDocById(ids[1], ownerGroupChecks.fooUser, function (err, blog) {
+      Blog.readDocById(ids[1], ownerGroupChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[1]);
@@ -345,7 +344,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readDocById` should fetch a document with arity of 3 and correct group', function (done) {
-      Blog.readDocById(ids[1], ownerGroupChecks.fooUser, function (err, blog) {
+      Blog.readDocById(ids[1], ownerGroupChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[1]);
@@ -354,7 +353,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchDocById` should not patch an existing document with arity of 4 and wrong document owner', function (done) {
-      Blog.patchDocById(ids[0], blogPatch, ownerChecks.barUser, function (err, blog) {
+      Blog.patchDocById(ids[0], blogPatch, ownerChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
         done();
@@ -362,7 +361,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchDocById` should patch an existing document with arity of 4 and correct document owner', function (done) {
-      Blog.patchDocById(ids[0], blogPatch, ownerChecks.fooUser, function (err, blog) {
+      Blog.patchDocById(ids[0], blogPatch, ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[0]);
@@ -373,7 +372,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchDocById` should patch an existing document with arity of 5 and correct document owner', function (done) {
-      Blog.patchDocById(ids[1], blogPatch, ownerChecks.barUser, function (err, blog) {
+      Blog.patchDocById(ids[1], blogPatch, ownerChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[1]);
@@ -384,7 +383,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`destroyDocById` should destroy an existing document with arity of 3 and correct document owner', function (done) {
-      Blog.destroyDocById(ids[0], ownerChecks.fooUser, function (err, blog) {
+      Blog.destroyDocById(ids[0], ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         done();
@@ -392,7 +391,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`destroyDocById` should not destroy an existing document with arity of 3 and wrong document owner', function (done) {
-      Blog.destroyDocById(ids[1], ownerChecks.fooUser, function (err, blog) {
+      Blog.destroyDocById(ids[1], ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
         done();
@@ -410,7 +409,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createDoc` should create a new document with selected and populated fields', function (done) {
-      Blog.createDoc(blogDataOwners.fooUser, params, function (err, blog) {
+      Blog.createDoc(blogDataOwners[0], params, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBeDefined();
@@ -419,14 +418,14 @@ describe('Mongoose plugin: resource', function () {
         expect(blog.comments).toBeUndefined();
         expect(blog.__v).toBeUndefined();
         expect(blog.created.by).toEqual(jasmine.any(Object));
-        expect(blog.created.by.displayName).toBe(users.fooUser.displayName);
+        expect(blog.created.by.displayName).toBe(users[0].displayName);
         ids.push(blog.id);
         done();
       });
     });
 
     it('`readDocById` should fetch a document with selected and populated fields', function (done) {
-      Blog.readDocById(ids[0], _.merge({}, params, ownerGroupChecks.fooUser), function (err, blog) {
+      Blog.readDocById(ids[0], _.merge({}, params, ownerGroupChecks[0]), function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBe(ids[0]);
@@ -435,7 +434,7 @@ describe('Mongoose plugin: resource', function () {
         expect(blog.comments).toBeUndefined();
         expect(blog.__v).toBeUndefined();
         expect(blog.created.by).toEqual(jasmine.any(Object));
-        expect(blog.created.by.displayName).toBe(users.fooUser.displayName);
+        expect(blog.created.by.displayName).toBe(users[0].displayName);
         done();
       });
     });
@@ -575,7 +574,7 @@ describe('Mongoose plugin: resource', function () {
   describe('with subdocument collections', function () {
     var subdocParams = {};
     var blogIds = [];
-    var commentIds = [];
+    var comments = [];
 
     beforeAll(function (done) {
       BlogAnon.collection.remove(function () {
@@ -593,23 +592,27 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createCollDoc` should create a new subdocument with arity of 4', function (done) {
-      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: 'This is my comment'}, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: text}, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
-        expect(comment.body).toBe('This is my comment');
-        commentIds.push(comment.id);
+        expect(comment.body).toBe(text);
+        comments.push(comment);
         done();
       });
     });
 
     it('`createCollDoc` should create a new subdocument with arity of 5', function (done) {
-      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: 'This is my other comment'}, subdocParams, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: text}, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
-        expect(comment.body).toBe('This is my other comment');
-        commentIds.push(comment.id);
+        expect(comment.body).toBe(text);
+        comments.push(comment);
         done();
       });
     });
@@ -633,59 +636,63 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocById` should fetch subdocuments with arity of 4', function (done) {
-      BlogAnon.readCollDocById(blogIds[0], 'comments', commentIds[0], function (err, comment) {
+      BlogAnon.readCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my comment');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(comments[0].body);
         done();
       });
     });
 
     it('`readCollDocById` should fetch subdocuments with arity of 5', function (done) {
-      BlogAnon.readCollDocById(blogIds[0], 'comments', commentIds[1], subdocParams, function (err, comment) {
+      BlogAnon.readCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
-        expect(comment.body).toBe('This is my other comment');
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(comments[1].body);
         done();
       });
     });
 
     it('`patchCollDocById` should patch subdocument with arity of 5', function (done) {
-      BlogAnon.patchCollDocById(blogIds[0], 'comments', commentIds[0], {body: 'This is my update'}, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my update');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(text);
         done();
       });
     });
 
     it('`patchCollDocById` should patch subdocument with arity of 6', function (done) {
-      BlogAnon.patchCollDocById(blogIds[0], 'comments', commentIds[1], {body: 'This is my other update'}, subdocParams, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[1].id, {body: text}, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
-        expect(comment.body).toBe('This is my other update');
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(text);
         done();
       });
     });
 
     it('`destroyCollDocById` should destroy an existing subdocument with arity of 4', function (done) {
-      BlogAnon.destroyCollDocById(blogIds[0], 'comments', commentIds[0], function (err, comment) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
+        expect(comment.id).toBe(comments[0].id);
         done();
       });
     });
 
     it('`destroyCollDocById` should destroy an existing subdocument with arity of 5', function (done) {
-      BlogAnon.destroyCollDocById(blogIds[0], 'comments', commentIds[1], params, function (err, comment) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[1].id, params, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
+        expect(comment.id).toBe(comments[1].id);
         done();
       });
     });
@@ -693,7 +700,7 @@ describe('Mongoose plugin: resource', function () {
 
   describe('with subdocument collections and owner/group restrictions', function () {
     var blogIds = [];
-    var commentIds = [];
+    var comments = [];
 
     beforeAll(function (done) {
       Blog.collection.remove(function () {
@@ -702,7 +709,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createDoc` should create a new document', function (done) {
-      Blog.createDoc(blogDataOwners.fooUser, function (err, blog) {
+      Blog.createDoc(blogDataOwners[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         blogIds.push(blog.id);
@@ -711,7 +718,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createDoc` should create a new document', function (done) {
-      Blog.createDoc(blogDataOwners.barUser, function (err, blog) {
+      Blog.createDoc(blogDataOwners[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         blogIds.push(blog.id);
@@ -720,7 +727,9 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createCollDoc` should not create a new subdocument with arity of 5 and wrong document owner/group', function (done) {
-      Blog.createCollDoc(blogIds[0], 'comments', {body: 'This is my comment', created: {by: users.barUser}}, ownerGroupChecks.barUser, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      Blog.createCollDoc(blogIds[0], 'comments', {body: text, created: {by: users[1]}}, ownerGroupChecks[1], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -728,29 +737,33 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createCollDoc` should create a new subdocument with arity of 5 and correct document owner', function (done) {
-      Blog.createCollDoc(blogIds[0], 'comments', {body: 'This is my comment', created: {by: users.fooUser}}, ownerGroupChecks.fooUser, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      Blog.createCollDoc(blogIds[0], 'comments', {body: text, created: {by: users[0]}}, ownerGroupChecks[0], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
-        expect(comment.body).toBe('This is my comment');
-        commentIds.push(comment.id);
+        expect(comment.body).toBe(text);
+        comments.push(comment);
         done();
       });
     });
 
     it('`createCollDoc` should create a new subdocument with arity of 5 and correct document owner/group', function (done) {
-      Blog.createCollDoc(blogIds[1], 'comments', {body: 'This is my comment', created: {by: users.fooUser}}, ownerGroupChecks.fooUser, function (err, comment) {
+      var text = faker.lorem.paragraph();
+
+      Blog.createCollDoc(blogIds[1], 'comments', {body: text, created: {by: users[0]}}, ownerGroupChecks[0], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
-        expect(comment.body).toBe('This is my comment');
-        commentIds.push(comment.id);
+        expect(comment.body).toBe(text);
+        comments.push(comment);
         done();
       });
     });
 
     it('`readCollDocs` should not fetch subdocuments with arity of 4 and wrong document owner/group', function (done) {
-      Blog.readCollDocs(blogIds[0], 'comments', ownerGroupChecks.barUser, function (err, comments) {
+      Blog.readCollDocs(blogIds[0], 'comments', ownerGroupChecks[1], function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toBe(null);
         done();
@@ -758,7 +771,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocs` should fetch subdocuments with arity of 4 and correct document owner', function (done) {
-      Blog.readCollDocs(blogIds[0], 'comments', ownerGroupChecks.fooUser, function (err, comments) {
+      Blog.readCollDocs(blogIds[0], 'comments', ownerGroupChecks[0], function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
         expect(comments.length).toBe(1);
@@ -767,7 +780,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocs` should fetch subdocuments with arity of 4 and correct document owner/group', function (done) {
-      Blog.readCollDocs(blogIds[1], 'comments', ownerGroupChecks.fooUser, function (err, comments) {
+      Blog.readCollDocs(blogIds[1], 'comments', ownerGroupChecks[0], function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
         expect(comments.length).toBe(1);
@@ -776,7 +789,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocById` should not fetch subdocuments with arity of 5 and wrong document owner/group', function (done) {
-      Blog.readCollDocById(blogIds[0], 'comments', commentIds[0], ownerGroupChecks.barUser, function (err, comment) {
+      Blog.readCollDocById(blogIds[0], 'comments', comments[0].id, ownerGroupChecks[1], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -784,29 +797,30 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`readCollDocById` should fetch subdocuments with arity of 5', function (done) {
-      Blog.readCollDocById(blogIds[0], 'comments', commentIds[0], ownerGroupChecks.fooUser, function (err, comment) {
+      Blog.readCollDocById(blogIds[0], 'comments', comments[0].id, ownerGroupChecks[0], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my comment');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(comments[0].body);
         done();
       });
     });
 
     it('`readCollDocById` should fetch subdocuments with arity of 5', function (done) {
-      Blog.readCollDocById(blogIds[1], 'comments', commentIds[1], ownerGroupChecks.fooUser, function (err, comment) {
+      Blog.readCollDocById(blogIds[1], 'comments', comments[1].id, ownerGroupChecks[0], function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
-        expect(comment.body).toBe('This is my comment');
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(comments[1].body);
         done();
       });
     });
 
     it('`patchCollDocById` should not patch subdocument with arity of 6 with wrong document owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.barUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.barUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[1], 'comments._id': comments[0].id}}, ownerGroupChecks[1]);
+      var text = faker.lorem.paragraph();
 
-      Blog.patchCollDocById(blogIds[0], 'comments', commentIds[0], {body: 'This is my update'}, collParams, function (err, comment) {
+      Blog.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -814,9 +828,10 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchCollDocById` should not patch subdocument with arity of 6 with wrong subdocumet owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.barUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.barUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[1], 'comments._id': comments[0].id}}, ownerGroupChecks[1]);
+      var text = faker.lorem.paragraph();
 
-      Blog.patchCollDocById(blogIds[1], 'comments', commentIds[0], {body: 'This is my update'}, collParams, function (err, comment) {
+      Blog.patchCollDocById(blogIds[1], 'comments', comments[0].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -824,33 +839,35 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`patchCollDocById` should patch subdocument with arity of 6 with correct subdocumet owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.fooUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[0], 'comments._id': comments[0].id}}, ownerGroupChecks[0]);
+      var text = faker.lorem.paragraph();
 
-      Blog.patchCollDocById(blogIds[0], 'comments', commentIds[0], {body: 'This is my update'}, collParams, function (err, comment) {
+      Blog.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my update');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(text);
         done();
       });
     });
 
     it('`patchCollDocById` should patch subdocument with arity of 6 with correct subdocumet owner/group', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.fooUser, 'comments._id': commentIds[1]}}, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[0], 'comments._id': comments[1].id}}, ownerGroupChecks[0]);
+      var text = faker.lorem.paragraph();
 
-      Blog.patchCollDocById(blogIds[1], 'comments', commentIds[1], {body: 'This is my other update'}, collParams, function (err, comment) {
+      Blog.patchCollDocById(blogIds[1], 'comments', comments[1].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
-        expect(comment.body).toBe('This is my other update');
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(text);
         done();
       });
     });
 
     it('`destroyCollDocById` should not destroy subdocument with arity of 5 with wrong document owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.barUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.barUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[1], 'comments._id': comments[0].id}}, ownerGroupChecks[1]);
 
-      Blog.destroyCollDocById(blogIds[0], 'comments', commentIds[0], collParams, function (err, comment) {
+      Blog.destroyCollDocById(blogIds[0], 'comments', comments[0].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -858,9 +875,9 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`destroyCollDocById` should not destroy subdocument with arity of 5 with wrong subdocumet owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.barUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.barUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[1], 'comments._id': comments[0].id}}, ownerGroupChecks[1]);
 
-      Blog.destroyCollDocById(blogIds[1], 'comments', commentIds[0], collParams, function (err, comment) {
+      Blog.destroyCollDocById(blogIds[1], 'comments', comments[0].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toBe(null);
         done();
@@ -868,23 +885,23 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`destroyCollDocById` should destroy subdocument with arity of 5 with correct subdocumet owner', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.fooUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[0], 'comments._id': comments[0].id}}, ownerGroupChecks[0]);
 
-      Blog.destroyCollDocById(blogIds[0], 'comments', commentIds[0], collParams, function (err, comment) {
+      Blog.destroyCollDocById(blogIds[0], 'comments', comments[0].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
+        expect(comment.id).toBe(comments[0].id);
         done();
       });
     });
 
     it('`destroyCollDocById` should destroy subdocument with arity of 5 with correct subdocumet owner/group', function (done) {
-      var collParams = _.merge({}, {where: {'comments.created.by': users.fooUser, 'comments._id': commentIds[1]}}, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, {where: {'comments.created.by': users[0], 'comments._id': comments[1].id}}, ownerGroupChecks[0]);
 
-      Blog.destroyCollDocById(blogIds[1], 'comments', commentIds[1], collParams, function (err, comment) {
+      Blog.destroyCollDocById(blogIds[1], 'comments', comments[1].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[1]);
+        expect(comment.id).toBe(comments[1].id);
         done();
       });
     });
@@ -892,7 +909,7 @@ describe('Mongoose plugin: resource', function () {
 
   describe('with subdocument collection params', function () {
     var blogIds = [];
-    var commentIds = [];
+    var comments = [];
     var subdocParams = {
       select: 'comments.id comments.body comments.created.by',
       populate: [{path: 'comments.created.by', ref: 'User', select: 'displayName'}]
@@ -905,7 +922,7 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createDoc` should create a new document', function (done) {
-      Blog.createDoc(blogDataOwners.fooUser, function (err, blog) {
+      Blog.createDoc(blogDataOwners[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         expect(blog.id).toBeDefined();
@@ -915,63 +932,65 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('`createCollDoc` should create a new subdocument with selected and populated fields', function (done) {
-      var collParams = _.merge({}, subdocParams, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, subdocParams, ownerGroupChecks[0]);
+      var text = faker.lorem.paragraph();
 
-      Blog.createCollDoc(blogIds[0], 'comments', {body: 'This is my comment', created: {by: users.fooUser}}, collParams, function (err, comment) {
+      Blog.createCollDoc(blogIds[0], 'comments', {body: text, created: {by: users[0]}}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBeDefined();
-        expect(comment.body).toBe('This is my comment');
+        expect(comment.body).toBe(text);
         expect(comment.__v).toBeUndefined();
         expect(comment.created.by).toEqual(jasmine.any(Object));
-        expect(comment.created.by.displayName).toBe(users.fooUser.displayName);
-        commentIds.push(comment.id);
+        expect(comment.created.by.displayName).toBe(users[0].displayName);
+        comments.push(comment);
         done();
       });
     });
 
     it('`readCollDocs` should fetch subdocuments with selected and populated fields', function (done) {
-      var collParams = _.merge({}, subdocParams, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, subdocParams, ownerGroupChecks[0]);
 
       Blog.readCollDocs(blogIds[0], 'comments', collParams, function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
         expect(comments.length).toBe(1);
-        expect(comments[0].id).toBe(commentIds[0]);
-        expect(comments[0].body).toBe('This is my comment');
+        expect(comments[0].id).toBe(comments[0].id);
+        expect(comments[0].body).toBe(comments[0].body);
         expect(comments[0].__v).toBeUndefined();
         expect(comments[0].created.by).toEqual(jasmine.any(Object));
-        expect(comments[0].created.by.displayName).toBe(users.fooUser.displayName);
+        expect(comments[0].created.by.displayName).toBe(users[0].displayName);
         done();
       });
     });
 
     it('`readCollDocById` should fetch a subdocument with selected and populated fields', function (done) {
-      var collParams = _.merge({}, subdocParams, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, subdocParams, ownerGroupChecks[0]);
 
-      Blog.readCollDocById(blogIds[0], 'comments', commentIds[0], collParams, function (err, comment) {
+      Blog.readCollDocById(blogIds[0], 'comments', comments[0].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my comment');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(comments[0].body);
         expect(comment.__v).toBeUndefined();
         expect(comment.created.by).toEqual(jasmine.any(Object));
-        expect(comment.created.by.displayName).toBe(users.fooUser.displayName);
+        expect(comment.created.by.displayName).toBe(users[0].displayName);
         done();
       });
     });
 
     it('`patchCollDocById` should patch subdocument with selected and populated fields', function (done) {
-      var collParams = _.merge({}, subdocParams, {where: {'comments.created.by': users.fooUser, 'comments._id': commentIds[0]}}, ownerGroupChecks.fooUser);
+      var collParams = _.merge({}, subdocParams, {where: {'comments.created.by': users[0], 'comments._id': comments[0].id}}, ownerGroupChecks[0]);
+      var text = faker.lorem.paragraph();
 
-      Blog.patchCollDocById(blogIds[0], 'comments', commentIds[0], {body: 'This is my update'}, collParams, function (err, comment) {
+      Blog.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
-        expect(comment.id).toBe(commentIds[0]);
-        expect(comment.body).toBe('This is my update');
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(text);
         expect(comment.__v).toBeUndefined();
         expect(comment.created.by).toEqual(jasmine.any(Object));
-        expect(comment.created.by.displayName).toBe(users.fooUser.displayName);
+        expect(comment.created.by.displayName).toBe(users[0].displayName);
         done();
       });
     });
@@ -979,8 +998,7 @@ describe('Mongoose plugin: resource', function () {
 
   xdescribe('with subdocument paging params', function () {
     var blogDoc;
-    var commentDocs = [];
-    var commentIds = [];
+    var comments = [];
     var subDocsSortedByDate;
     var subDocsSortedByDateReversed;
     var pagingParams = {
@@ -993,8 +1011,8 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document', function (done) {
-      BlogAnon.createDoc({title: 'This is a blog with a lot of comments'}, function (err, blog) {
+    beforeAll(function (done) {
+      BlogAnon.createDoc({title: faker.lorem.sentence()}, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
         blogDoc = blog;
@@ -1004,17 +1022,19 @@ describe('Mongoose plugin: resource', function () {
 
     Array(20).join('.').split('.').map(function (v, i) {
       it('should create a subdocument', function (done) {
-        BlogAnon.createCollDoc(blogDoc.id, 'comments', {title: 'This is comment ' + i, created: {date: (new Date()).setMilliseconds(i)}}, function (err, comment) {
+        var text = faker.lorem.paragraph();
+
+        BlogAnon.createCollDoc(blogDoc.id, 'comments', {title:  text, created: {date: (new Date()).setMilliseconds(i)}}, function (err, comment) {
           expect(comment).toEqual(jasmine.any(Object));
 
-          commentDocs.push(comment);
+          comments.push(comment);
           done();
         });
       });
     });
 
     it('should sort comments', function () {
-      expect(commentDocs.length).toBe(20);
+      expect(comments.length).toBe(20);
 
       subDocsSortedByDate = commentDocs.sort(function (a, b) {
         return a.created.date - b.created.date;
@@ -1025,28 +1045,24 @@ describe('Mongoose plugin: resource', function () {
     });
 
     it('should return first 5 records', function (done) {
-      BlogAnon.readCollDocs(blogDoc.id, pagingParams, function (err, comments) {
-        expect(comments.length).toBe(5);
+      BlogAnon.readCollDocs(blogDoc.id, pagingParams, function (err, block) {
+        expect(block.length).toBe(5);
 
-        comments.forEach(function (comment, i) {
-          commentIds.push(comment.id);
-          expect(commentDocs[i].id).toBe(comment.id);
+        block.forEach(function (comment, i) {
+          expect(comments[i].id).toBe(comment.id);
         });
         done();
       });
     });
 
     it('should return next 5 records with skip', function (done) {
-      BlogAnon.readCollDocs(blogDoc.id, _.merge({}, pagingParams, {skip: 5}), function (err, comments) {
-        expect(comments.length).toBe(5);
+      BlogAnon.readCollDocs(blogDoc.id, _.merge({}, pagingParams, {skip: 5}), function (err, block) {
+        expect(block.length).toBe(5);
 
-        comments.forEach(function (comment, i) {
-          commentIds.push(comment.id);
-          expect(commentDocs[i + 5].id).toBe(comment.id);
+        block.forEach(function (comment, i) {
+          expect(comments[i + 5].id).toBe(comment.id);
         });
 
-        // unique check
-        expect(isUniq(commentIds)).toBe(true);
         done();
       });
     });
