@@ -32,6 +32,8 @@ describe('Mongoose plugin: resource', function () {
   var ownerGroupChecks;
 
   beforeAll(function (done) {
+    mongoose.set('debug', process.env.DEBUG || false);
+
     connection = mongoose.createConnection('mongodb://localhost/unit_test');
     connection.once('connected', done);
   });
