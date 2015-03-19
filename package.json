@@ -1,11 +1,10 @@
 {
   "name": "mongoose-plugin-resource",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Mongoose.js plugin to add REST-type resource methods to models.",
   "main": "resource.js",
   "dependencies": {
-    "lodash-node": "^3.5.0",
-    "mongoose": "^3.8.24"
+    "lodash-node": "^3.5.0"
   },
   "devDependencies": {
     "faker": "^2.1.2",
@@ -13,9 +12,10 @@
     "gulp-debug": "^2.0.1",
     "gulp-if": "^1.2.5",
     "gulp-jasmine": "^2.0.0",
-    "gulp-jshint": "^1.9.2",
-    "gulp-todo": "^2.5.0",
-    "yargs": "^3.5.3"
+    "gulp-jshint": "^1.9.4",
+    "gulp-todo": "^2.5.1",
+    "mongoose": "^3.8.25",
+    "yargs": "^3.5.4"
   },
   "scripts": {
     "test": "gulp test"
@@ -27,6 +27,7 @@
   "keywords": [
     "mongoose",
     "plugin",
+    "API",
     "REST"
   ],
   "author": "Jason Cust <jason@centralping.com>",

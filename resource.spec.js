@@ -5,12 +5,6 @@ var resource = require('./resource');
 var Schema = mongoose.Schema;
 var connection;
 
-// Mongoose uses internal caching for models.
-// While {cache: false} works with most models, models using references
-// use the internal model cache for the reference.
-// This removes the mongoose entirely from node's cache
-delete require.cache.mongoose;
-
 // Test data
 var blogData = {
   title: faker.lorem.sentence(),
@@ -19,6 +13,16 @@ var blogData = {
 var blogPatch = {
   blog: faker.lorem.paragraphs()
 };
+var users = Array(3).join('.').split('.').map(function () {
+  return {displayName: faker.name.findName()};
+});
+var params = {
+  select: 'title blog created.by readers',
+  populate: [
+    {path: 'created.by', select: 'displayName'},
+    {path: 'readers', select: 'displayName'}
+  ]
+};
 
 describe('Mongoose plugin: resource', function () {
   var Blog;
@@ -26,29 +30,15 @@ describe('Mongoose plugin: resource', function () {
   var blogDataOwners;
   var ownerChecks;
   var ownerGroupChecks;
-  var users = Array(3).join('.').split('.').map(function () {
-    return {displayName: faker.name.findName()};
-  });
-  var params = {
-    select: 'title blog created.by readers',
-    populate: [
-      {path: 'created.by', select: 'displayName'},
-      {path: 'readers', select: 'displayName'}
-    ]
-  };
 
   beforeAll(function (done) {
     connection = mongoose.createConnection('mongodb://localhost/unit_test');
-    connection.once('connected', function () {
-      done();
-    });
+    connection.once('connected', done);
   });
 
   afterAll(function (done) {
     connection.db.dropDatabase(function (err, result) {
-      connection.close(function () {
-        done();
-      });
+      connection.close(done);
     });
   });
 
@@ -90,17 +80,18 @@ describe('Mongoose plugin: resource', function () {
     schema.plugin(resource);
     anonSchema.plugin(resource);
 
-    expect(Object.keys(schema.statics).length).toBe(10);
-    expect(schema.statics.createDoc).toBeDefined();
-    expect(schema.statics.readDocs).toBeDefined();
-    expect(schema.statics.readDocById).toBeDefined();
-    expect(schema.statics.patchDocById).toBeDefined();
-    expect(schema.statics.destroyDocById).toBeDefined();
-    expect(schema.statics.createCollDoc).toBeDefined();
-    expect(schema.statics.readCollDocs).toBeDefined();
-    expect(schema.statics.readCollDocById).toBeDefined();
-    expect(schema.statics.patchCollDocById).toBeDefined();
-    expect(schema.statics.destroyCollDocById).toBeDefined();
+    expect(Object.keys(schema.statics).sort()).toEqual([
+      'createCollDoc',
+      'createDoc',
+      'destroyCollDocById',
+      'destroyDocById',
+      'patchCollDocById',
+      'patchDocById',
+      'readCollDocById',
+      'readCollDocs',
+      'readDocById',
+      'readDocs'
+    ]);
 
     Blog = model('Blog', schema);
     BlogAnon = model('BlogAnon', anonSchema);

@@ -1,7 +1,4 @@
-var mongoose = require('mongoose');
 var _ = require('lodash-node/modern');
-
-var ObjectId = mongoose.Types.ObjectId;
 
 module.exports = function resourceControlPlugin(schema, pluginOptions) {
   var paths = Object.keys(schema.paths);
