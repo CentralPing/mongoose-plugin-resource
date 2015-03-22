@@ -3,104 +3,98 @@ var _ = require('lodash-node/modern');
 module.exports = function resourceControlPlugin(schema, pluginOptions) {
   var paths = Object.keys(schema.paths);
 
-  // Creates a new document and returns the whitelisted document on success
+  // Creates a new document and returns a whitelisted document on success
   schema.static('createDoc', function createDoc(obj, params, cb) {
     var Model = this;
 
     // Arity check
-    if (arguments.length === 2) {
+    if (arguments.length === 2 && _.isFunction(params)) {
       // MODEL.createDoc(obj, cb)
       cb = params;
       params = {};
     }
 
-    return (new Model(obj)).save(function createDocSave(err, newDoc, count) {
-      if (err || count === 0) { return cb(err, null); }
-
-      return Model.readDocById(newDoc.id, params, cb);
+    // Need to do a find to apply schema options (select, default, etc.) and
+    //   any passed in params
+    // If no callback returns promise with `err` from create or findOne query
+    return Model.create(obj).then(function createDocCreated(doc) {
+      return Model.readDocById(doc.id, params, cb);
+    }).then(null, function createDocErr(err) {
+      if (cb) { cb(err); }
     });
   });
 
   schema.static('readDocs', function readDocs(params, cb) {
+    var Model = this;
+
     // Arity check
-    if (arguments.length === 1) {
+    if (arguments.length === 1 && _.isFunction(params)) {
       // MODEL.readDocs(cb)
       cb = params;
       params = {};
     }
 
-    return queryBuilder(this, params).exec(cb);
+    // Promise is always returned regardless if callback is defined
+    return queryBuilder(Model.find(), params).exec(cb);
   });
 
   schema.static('readDocById', function readDocById(docId, params, cb) {
+    var Model = this;
+
     // Arity check
-    if (arguments.length === 2) {
-      // readDocById(id, cb)
+    if (arguments.length === 2 && _.isFunction(params)) {
+      // MODEL.readDocById(id, cb)
       cb = params;
       params = {};
     }
 
-    return queryBuilder(this, params, docId).exec(cb);
+    // Promise is always returned regardless if callback is defined
+    return queryBuilder(Model.findOne().where('_id', docId), params).exec(cb);
   });
 
-  // Need to fetch and then save a document to trigger MongooseJS middleware hooks
-  //   https://github.com/LearnBoost/mongoose/issues/964
   schema.static('patchDocById', function patchDocById(docId, patch, params, cb) {
     var Model = this;
 
     // Arity check
-    if (arguments.length === 3) {
+    if (arguments.length === 3 && _.isFunction(params)) {
       // MODEL.patchDocById(id, patch, cb)
       cb = params;
       params = {};
     }
 
-    return Model.readDocById(docId, params, function patchDocByIdQuery(err, doc) {
-      if (err || doc === null) { return cb(err, doc); }
-
-      doc
-      .set(patch)
-      .save(function patchDocByIdSave(err, patchedDoc, count) {
-        if (err || count === 0) { return cb(err, null); }
-
-        var queryParams = _.clone(params, true);
-
-        delete queryParams.where;
-
-        return Model.readDocById(docId, queryParams, cb);
-      });
-    });
+    // {new: true} to return updated document
+    //   https://github.com/LearnBoost/mongoose/issues/2262
+    // Promise is always returned regardless if callback is defined
+    return queryBuilder(Model.findOneAndUpdate({'_id': docId}, patch, {new: true}), params).exec(cb);
   });
 
-  // Need to fetch and then remove a document to trigger MongooseJS middleware hooks
-  //   https://github.com/LearnBoost/mongoose/issues/964
   schema.static('destroyDocById', function destroyDocById(docId, params, cb) {
     var Model = this;
 
     // Arity check
-    if (arguments.length === 2) {
+    if (arguments.length === 2 && _.isFunction(params)) {
       // MODEL.destroyDocById(id, cb)
       cb = params;
       params = {};
     }
 
-    return Model.readDocById(docId, params, function destroyDocByIdQuery(err, doc) {
-      if (err || doc === null) { return cb(err, doc); }
-
-      return doc.remove(cb);
-    });
+    // Promise is always returned regardless if callback is defined
+    return queryBuilder(Model.findOneAndRemove({'_id': docId}), params).exec(cb);
   });
 
   // Model methods for subdocument collections
 
-  // Need to fetch and then save a document to trigger MongooseJS middleware hooks
-  //   https://github.com/LearnBoost/mongoose/issues/964
+  // Need to fetch collection object from parent, push child document,
+  //   save parent document and then fetch new child document to apply
+  //   schema options (select, default, etc.) and any passed in params
+  //   http://mongoosejs.com/docs/subdocs.html
+  //   https://github.com/LearnBoost/mongoose/issues/2210
   schema.static('createCollDoc', function createCollDoc(docId, collPath, collObj, params, cb) {
     var Model = this;
     var collParams = {select: {_id: 1}};
 
     // Arity check
-    if (arguments.length === 4) {
+    if (arguments.length === 4 && _.isFunction(params)) {
       // MODEL.createCollDoc(docId, collPath, collDoc, cb)
       cb = params;
       params = {};
@@ -111,23 +105,35 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
     if (params.where) { collParams.where = params.where; }
 
-    return Model.readCollDocs(docId, collPath, collParams, function readDCollDocsCallBack(err, coll) {
-      if (err || coll === null) { return cb(err, coll); }
+    return Model.readCollDocs(docId, collPath, collParams).then(function readDCollDocsFound(coll) {
+      // No document found
+      // Pass to next `then` if null
+      if (coll === null) { return coll; }
 
-      var collDoc = coll.create(collObj);
+      collection = coll;
 
       // Add to collection
-      coll.push(collDoc);
+      // Pushing casts the object to a model instance
+      coll.push(collObj);
 
-      return collDoc.parent().save(function createCollDocSave(err, doc, count) {
-        if (err || count === 0) { return cb(err, null); }
+      // There will always only be one item due to `{$slice: 0}`
+      collDocId = coll[0].id;
 
-        collParams = _.clone(params, true);
+      return coll[0].parent().save();
+    }).then(function createCollDocSaved(doc) {
+      // `null` if parent document wasn't found
+      if (doc === null) {
+        if (cb) { return cb(null, doc); }
 
-        delete collParams.where;
+        return doc;
+      }
 
-        return Model.readCollDocById(docId, collPath, collDoc.id, collParams, cb);
-      });
+      collParams = _.clone(params, true);
+      delete collParams.where;
+
+      return Model.readCollDocById(docId, collPath, collDocId, collParams, cb);
+    }).then(null, function createCollDocError(err) {
+      if (cb) { cb(err); }
     });
   });
 
@@ -137,7 +143,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     var collPathId = {};
 
     // Arity check
-    if (arguments.length === 3) {
+    if (arguments.length === 3 && _.isFunction(params)) {
       // MODEL.readCollDocs(docId, collPath, cb)
       cb = params;
       params = {};
@@ -169,8 +175,14 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
     // TODO: utilize aggregation to allow for sorting, paging, etc.
     // Main issue is once a subdocument is unwound, the returned objects are POJOs
-    return Model.readDocById(docId, queryParams, function readDocByIdCallBack(err, doc) {
-      return cb(err, doc && doc.get(collPath));
+    return Model.readDocById(docId, queryParams).then(function readDocByIdFound(doc) {
+      var coll = (doc && doc.get(collPath)) || null;
+
+      if (cb) { cb(null, coll); }
+
+      return coll;
+    }).then(null, function readCollDocsError(err) {
+      if (cb) { cb(err); }
     });
   });
 
@@ -178,16 +190,22 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     var Model = this;
 
     // Arity check
-    if (arguments.length === 4) {
+    if (arguments.length === 4 && _.isFunction(params)) {
       // MODEL.readCollDocById(docId, collPath, collId, cb)
       cb = params;
       params = {};
     }
 
-    return Model.readCollDocs(docId, collPath, params, function readCollDocsCallBack(err, coll) {
-      // Only return the desired subdocument
-      // TODO: utilize aggregation to remove overhead of returning entire collection
-      return cb(err, coll && coll.id(collId));
+    // Only return the desired subdocument
+    // TODO: utilize aggregation to remove overhead of returning entire collection
+    return Model.readCollDocs(docId, collPath, params).then(function readCollDocsFound(coll) {
+      var collDoc = (coll && coll.id(collId)) || null;
+
+      if (cb) { cb(null, collDoc); }
+
+      return collDoc;
+    }).then(null, function readCollDocByIdError(err) {
+      if (cb) { cb(err); }
     });
   });
 
@@ -210,20 +228,28 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams = _.merge({}, params, {select: {_id: 1}});
     collParams.select[collPath + '._id'] = 1;
 
-    Model.readCollDocById(docId, collPath, collId, collParams, function patchCollDocByIdCallBack(err, collDoc) {
-      if (err || collDoc === null) { return cb(err, collDoc); }
+    return Model.readCollDocById(docId, collPath, collId, collParams).then(function readCollDocByIdFound(collDoc) {
+      // No document found
+      // Pass to next `then` if null
+      if (collDoc === null) { return collDoc; }
 
       collDoc.set(collPatch);
 
-      return collDoc.parent().save(function patchCollDocByIdSave(err, doc, count) {
-        if (err || count === 0) { return cb(err, null); }
+      return collDoc.parent().save();
+    }).then(function patchCollDocByIdSaved(doc) {
+      // `null` if parent document wasn't found
+      if (doc === null) {
+        if (cb) { return cb(null, doc); }
 
-        collParams = _.clone(params, true);
+        return doc;
+      }
 
-        delete collParams.where;
+      collParams = _.clone(params, true);
+      delete collParams.where;
 
-        return Model.readCollDocById(docId, collPath, collId, collParams, cb);
-      });
+      return Model.readCollDocById(docId, collPath, collId, collParams, cb);
+    }).then(null, function patchCollDocByIdError(err) {
+      if (cb) { cb(err); }
     });
   });
 
@@ -246,22 +272,28 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     collParams = _.merge({}, params, {select: {_id: 1}});
     collParams.select[collPath + '._id'] = 1;
 
-    Model.readCollDocById(docId, collPath, collId, collParams, function desctroyCollDocByIdCallBack(err, collDoc) {
-      if (err || collDoc === null) { return cb(err, collDoc); }
+    return Model.readCollDocById(docId, collPath, collId, collParams).then(function readCollDocByIdFound(collDoc) {
+      // No document found
+      // Pass to next `then` if null
+      if (collDoc === null) { return collDoc; }
 
       collDoc.remove();
 
-      return collDoc.parent().save(function readDocByIdCallBack(err, doc, count) {
-        if (err || count === 0) { return cb(err, null); }
-
-        return cb(err, collDoc);
+      return collDoc.parent().save().then(function destroyCollDocByIdSaved(doc) {
+        // `null` if parent document wasn't found
+        return doc && collDoc;
       });
+    }).then(function desctroyCollDocByIdCallBackCheck(collDoc) {
+      if (cb) { return cb(null, collDoc); }
+
+      return collDoc;
+    }).then(null, function destroyCollDocByIdError(err) {
+      if (cb) { cb(err); }
     });
   });
 };
 
-function queryBuilder(Model, params, docId) {
-  var query = docId === undefined ? Model.find() : Model.findOne().where('_id', docId);
+function queryBuilder(query, params) {
   params = params || {};
 
   if (params.select) { query.select(params.select); }
@@ -278,6 +310,8 @@ function queryBuilder(Model, params, docId) {
   if (_.isNumber(params.limit)) { query.limit(params.limit); }
 
   if (params.populate) { query.populate(params.populate); }
+
+  if (params.lean) { query.lean(); }
 
   return query;
 }

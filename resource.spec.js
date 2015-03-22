@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 var _ = require('lodash-node/modern');
+var async = require('async');
 var faker = require('faker');
 var resource = require('./resource');
 var Schema = mongoose.Schema;
@@ -13,9 +14,7 @@ var blogData = {
 var blogPatch = {
   blog: faker.lorem.paragraphs()
 };
-var users = Array(3).join('.').split('.').map(function () {
-  return {displayName: faker.name.findName()};
-});
+var users;
 var params = {
   select: 'title blog created.by readers',
   populate: [
@@ -47,8 +46,11 @@ describe('Mongoose plugin: resource', function () {
   // Create test users
   beforeAll(function (done) {
     var User = model('User', UserSchema());
-    User.create(users, function () {
-      users = Array.prototype.slice.call(arguments, 1);
+
+    User.create(Array(3).join('.').split('.').map(function () {
+      return {displayName: faker.name.findName()};
+    }), function (err, usersArray) {
+      users = usersArray;
 
       blogDataOwners = [
         {created: {by: users[0].id}},
@@ -104,7 +106,7 @@ describe('Mongoose plugin: resource', function () {
     done();
   });
 
-  describe('with no document params', function () {
+  describe('with document', function () {
     var ids = [];
 
     beforeAll(function (done) {
@@ -453,9 +455,8 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.create(Array(20).join('.').split('.').map(function (v, i) {
         // Ensure create dates are unique
         return {title: 'This is blog ' + i, created: {date: (new Date()).setMilliseconds(i)}};
-      }), function (err) {
-        blogDocs = [].slice.call(arguments, 1);
-
+      }), function (err, docs) {
+        blogDocs = docs;
         docsSortedByDate = blogDocs.sort(function (a, b) {
           return a.created.date - b.created.date;
         });
@@ -575,10 +576,9 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document', function (done) {
+    // create parent doc
+    beforeAll(function (done) {
       BlogAnon.createDoc(blogData, function (err, blog) {
-        expect(err).toBe(null);
-        expect(blog).toEqual(jasmine.any(Object));
         blogIds.push(blog.id);
         done();
       });
@@ -701,19 +701,17 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document', function (done) {
+    // create parent doc 1
+    beforeAll(function (done) {
       Blog.createDoc(blogDataOwners[0], function (err, blog) {
-        expect(err).toBe(null);
-        expect(blog).toEqual(jasmine.any(Object));
         blogIds.push(blog.id);
         done();
       });
     });
 
-    it('`createDoc` should create a new document', function (done) {
+    // create parent doc 2
+    beforeAll(function (done) {
       Blog.createDoc(blogDataOwners[1], function (err, blog) {
-        expect(err).toBe(null);
-        expect(blog).toEqual(jasmine.any(Object));
         blogIds.push(blog.id);
         done();
       });
@@ -914,11 +912,9 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`createDoc` should create a new document', function (done) {
+    // create parent doc
+    beforeAll(function (done) {
       Blog.createDoc(blogDataOwners[0], function (err, blog) {
-        expect(err).toBe(null);
-        expect(blog).toEqual(jasmine.any(Object));
-        expect(blog.id).toBeDefined();
         blogIds.push(blog.id);
         done();
       });
@@ -991,7 +987,7 @@ describe('Mongoose plugin: resource', function () {
 
   xdescribe('with subdocument paging params', function () {
     var blogDoc;
-    var comments = [];
+    var comments;
     var subDocsSortedByDate;
     var subDocsSortedByDateReversed;
     var pagingParams = {
@@ -1004,43 +1000,39 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    // create parent doc
     beforeAll(function (done) {
       BlogAnon.createDoc({title: faker.lorem.sentence()}, function (err, blog) {
-        expect(err).toBe(null);
-        expect(blog).toEqual(jasmine.any(Object));
         blogDoc = blog;
         done();
       });
     });
 
-    Array(20).join('.').split('.').map(function (v, i) {
-      it('should create a subdocument', function (done) {
+    // create coll docs
+    beforeAll(function (done) {
+      async.times(20, function(n, next) {
         var text = faker.lorem.paragraph();
 
-        BlogAnon.createCollDoc(blogDoc.id, 'comments', {title:  text, created: {date: (new Date()).setMilliseconds(i)}}, function (err, comment) {
-          expect(comment).toEqual(jasmine.any(Object));
+        BlogAnon.createCollDoc(blogDoc.id, 'comments', {title:  text, created: {date: (new Date()).setMilliseconds(n)}}, next);
+      }, function (err, commentArray) {
+        comments = commentArray;
 
-          comments.push(comment);
-          done();
+        subDocsSortedByDate = comments.sort(function (a, b) {
+          return a.created.date - b.created.date;
         });
+
+        // reverse() modifies the array directly so we use a map to create a new array
+        subDocsSortedByDateReversed = subDocsSortedByDate.map(function (v) {return v;}).reverse();
+
+	done();
       });
-    });
-
-    it('should sort comments', function () {
-      expect(comments.length).toBe(20);
-
-      subDocsSortedByDate = commentDocs.sort(function (a, b) {
-        return a.created.date - b.created.date;
-      });
-
-      // reverse() modifies the array directly so we use a map to create a new array
-      subDocsSortedByDateReversed = subDocsSortedByDate.map(function (v) {return v;}).reverse();
     });
 
     it('should return first 5 records', function (done) {
       BlogAnon.readCollDocs(blogDoc.id, pagingParams, function (err, block) {
+	expect(err).toBe(null);
+        expect(block).toEqual(jasmine.any(Array));
         expect(block.length).toBe(5);
-
         block.forEach(function (comment, i) {
           expect(comments[i].id).toBe(comment.id);
         });
@@ -1093,7 +1085,11 @@ function BlogAnonSchema() {
     comments: [commentSchema]
   });
 
-  blogAnonSchema.set('toJSON', {getters: true, virtuals: true});
+  //blogAnonSchema.virtual('created.date').get(function convertIdToTimestamp() {
+  //  return new Date(this._id.getTimestamp());
+  //});
+
+  blogAnonSchema.set('toJSON', {virtuals: true});
   return blogAnonSchema;
 }
 
@@ -1105,6 +1101,10 @@ function BlogSchema() {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
+      },
+      date: {
+        type: Date,
+        default: Date.now
       }
     },
     readers: [{
@@ -1113,7 +1113,7 @@ function BlogSchema() {
     }]
   });
 
-  blogSchema.set('toJSON', {getters: true, virtuals: true});
+  blogSchema.set('toJSON', {virtuals: true});
   return blogSchema;
 }
 
@@ -1132,7 +1132,7 @@ function CommentSchema() {
     }
   });
 
-  commentSchema.set('toJSON', {getters: true, virtuals: true});
+  commentSchema.set('toJSON', {virtuals: true});
   return commentSchema;
 }
 
@@ -1141,6 +1141,6 @@ function UserSchema() {
     displayName: String
   });
 
-  userSchema.set('toJSON', {getters: true, virtuals: true});
+  userSchema.set('toJSON', {virtuals: true});
   return userSchema;
 }
