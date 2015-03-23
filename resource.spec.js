@@ -115,13 +115,34 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`createDoc` should not create a new document without required fields', function (done) {
+      BlogAnon.createDoc({}, function (err, blog) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['title']);
+        expect(blog).toBeUndefined();
+        done();
+      });
+    });
+
     it('`createDoc` should create a new document with arity of 2', function (done) {
       BlogAnon.createDoc(blogData, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
         expect(blog.id).toBeDefined();
         expect(blog.title).toEqual(blogData.title);
         expect(blog.blog).toEqual(blogData.blog);
+        expect(blog.tags).toEqual(blogData.blog.split(' ').splice(0,3));
         expect(blog.__v).toBeDefined();
         ids.push(blog.id);
         done();
@@ -145,6 +166,17 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.readDocs(function (err, blogs) {
         expect(err).toBe(null);
         expect(blogs).toEqual(jasmine.any(Array));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blogs[0]))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
         expect(blogs.length).toBe(2);
         done();
       });
@@ -163,6 +195,17 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.readDocById(ids[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
         expect(blog.id).toBe(ids[0]);
         done();
       });
@@ -177,10 +220,30 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`patchDocById` should not patch an existing document without required fields', function (done) {
+      BlogAnon.patchDocById(ids[0], {title: undefined}, function (err, blog) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['title']);
+        expect(blog).toBeUndefined();
+        done();
+      });
+    });
+
     it('`patchDocById` should patch an existing document with arity of 3', function (done) {
       BlogAnon.patchDocById(ids[0], blogPatch, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
         expect(blog.id).toBe(ids[0]);
         expect(blog.title).toEqual(blogData.title);
         expect(blog.blog).toEqual(blogPatch.blog);
@@ -203,6 +266,17 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.destroyDocById(ids[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
         done();
       });
     });
@@ -407,6 +481,18 @@ describe('Mongoose plugin: resource', function () {
       Blog.createDoc(blogDataOwners[0], params, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '_id',
+          'blog',
+          'created',
+          'id',
+          'readers',
+          'tags',
+          'title'
+        ]);
+
         expect(blog.id).toBeDefined();
         expect(blog.title).toBe(blogData.title);
         expect(blog.blog).toBe(blogData.blog);
@@ -423,6 +509,18 @@ describe('Mongoose plugin: resource', function () {
       Blog.readDocById(ids[0], _.merge({}, params, ownerGroupChecks[0]), function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '_id',
+          'blog',
+          'created',
+          'id',
+          'readers',
+          'tags',
+          'title'
+        ]);
+
         expect(blog.id).toBe(ids[0]);
         expect(blog.title).toBe(blogData.title);
         expect(blog.blog).toBe(blogData.blog);
@@ -584,14 +682,35 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`createCollDoc` should not create a new subdocument without required fields', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {}, function (err, comment) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['comments.0.body']);
+        expect(comment).toBeUndefined();
+        done();
+      });
+    });
+
     it('`createCollDoc` should create a new subdocument with arity of 4', function (done) {
       var text = faker.lorem.paragraph();
 
       BlogAnon.createCollDoc(blogIds[0], 'comments', {body: text}, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
         expect(comment.id).toBeDefined();
         expect(comment.body).toBe(text);
+        expect(comment.tags).toEqual(text.split(' ').splice(0,3));
         comments.push(comment);
         done();
       });
@@ -614,6 +733,15 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.readCollDocs(blogIds[0], 'comments', function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comments[0]))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
         expect(comments.length).toBe(2);
         done();
       });
@@ -632,6 +760,15 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.readCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
         expect(comment.id).toBe(comments[0].id);
         expect(comment.body).toBe(comments[0].body);
         done();
@@ -648,12 +785,30 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`patchCollDocById` should not patch subdocument without required fields', function (done) {
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: undefined}, function (err, comment) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['comments.0.body']);
+        expect(comment).toBeUndefined();
+        done();
+      });
+    });
+
     it('`patchCollDocById` should patch subdocument with arity of 5', function (done) {
       var text = faker.lorem.paragraph();
 
       BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
         expect(comment.id).toBe(comments[0].id);
         expect(comment.body).toBe(text);
         done();
@@ -676,13 +831,22 @@ describe('Mongoose plugin: resource', function () {
       BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
         expect(comment.id).toBe(comments[0].id);
         done();
       });
     });
 
     it('`destroyCollDocById` should destroy an existing subdocument with arity of 5', function (done) {
-      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[1].id, params, function (err, comment) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
         expect(comment.id).toBe(comments[1].id);
@@ -927,6 +1091,15 @@ describe('Mongoose plugin: resource', function () {
       Blog.createCollDoc(blogIds[0], 'comments', {body: text, created: {by: users[0]}}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'created',
+        //  'id'
+        //]);
+
         expect(comment.id).toBeDefined();
         expect(comment.body).toBe(text);
         expect(comment.__v).toBeUndefined();
@@ -943,6 +1116,15 @@ describe('Mongoose plugin: resource', function () {
       Blog.readCollDocs(blogIds[0], 'comments', collParams, function (err, comments) {
         expect(err).toBe(null);
         expect(comments).toEqual(jasmine.any(Array));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comments[0]))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'created',
+        //  'id'
+        //]);
+
         expect(comments.length).toBe(1);
         expect(comments[0].id).toBe(comments[0].id);
         expect(comments[0].body).toBe(comments[0].body);
@@ -959,6 +1141,15 @@ describe('Mongoose plugin: resource', function () {
       Blog.readCollDocById(blogIds[0], 'comments', comments[0].id, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'created',
+        //  'id'
+        //]);
+
         expect(comment.id).toBe(comments[0].id);
         expect(comment.body).toBe(comments[0].body);
         expect(comment.__v).toBeUndefined();
@@ -975,8 +1166,42 @@ describe('Mongoose plugin: resource', function () {
       Blog.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, collParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'created',
+        //  'id'
+        //]);
+
         expect(comment.id).toBe(comments[0].id);
         expect(comment.body).toBe(text);
+        expect(comment.__v).toBeUndefined();
+        expect(comment.created.by).toEqual(jasmine.any(Object));
+        expect(comment.created.by.displayName).toBe(users[0].displayName);
+        comments[0] = comment;
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should patch subdocument with selected and populated fields', function (done) {
+      var collParams = _.merge({}, subdocParams, {where: {'comments.created.by': users[0], 'comments._id': comments[0].id}}, ownerGroupChecks[0]);
+
+      Blog.destroyCollDocById(blogIds[0], 'comments', comments[0].id, collParams, function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'created',
+        //  'id'
+        //]);
+
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(comments[0].body);
         expect(comment.__v).toBeUndefined();
         expect(comment.created.by).toEqual(jasmine.any(Object));
         expect(comment.created.by.displayName).toBe(users[0].displayName);
@@ -1024,13 +1249,13 @@ describe('Mongoose plugin: resource', function () {
         // reverse() modifies the array directly so we use a map to create a new array
         subDocsSortedByDateReversed = subDocsSortedByDate.map(function (v) {return v;}).reverse();
 
-	done();
+        done();
       });
     });
 
     it('should return first 5 records', function (done) {
       BlogAnon.readCollDocs(blogDoc.id, pagingParams, function (err, block) {
-	expect(err).toBe(null);
+        expect(err).toBe(null);
         expect(block).toEqual(jasmine.any(Array));
         expect(block.length).toBe(5);
         block.forEach(function (comment, i) {
@@ -1074,20 +1299,27 @@ function model(name, schema) {
 function BlogAnonSchema() {
   var commentSchema = CommentSchema();
   var blogAnonSchema = Schema({
-    title: String,
+    title: {
+      type: String,
+      required: true
+    },
     blog: String,
     created: {
       date: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        select: false
       }
     },
-    comments: [commentSchema]
+    comments: {
+      type: [commentSchema],
+      select: false
+    }
   });
 
-  //blogAnonSchema.virtual('created.date').get(function convertIdToTimestamp() {
-  //  return new Date(this._id.getTimestamp());
-  //});
+  blogAnonSchema.virtual('tags').get(function getTags() {
+    return this.blog.split(' ').splice(0,3);
+  });
 
   blogAnonSchema.set('toJSON', {virtuals: true});
   return blogAnonSchema;
@@ -1100,17 +1332,17 @@ function BlogSchema() {
       by: {
         type: Schema.Types.ObjectId,
         ref: 'User',
-        required: true
-      },
-      date: {
-        type: Date,
-        default: Date.now
+        required: true,
+        select: false
       }
     },
-    readers: [{
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    }]
+    readers: {
+      type: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+      }],
+      select: false
+    }
   });
 
   blogSchema.set('toJSON', {virtuals: true});
@@ -1119,17 +1351,26 @@ function BlogSchema() {
 
 function CommentSchema() {
   var commentSchema = Schema({
-    body: String,
+    body: {
+      type: String,
+      required: true
+    },
     created: {
       by: {
         type: Schema.Types.ObjectId,
         ref: 'User',
+        select: false
       },
       date: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        select: false
       }
     }
+  });
+
+  commentSchema.virtual('tags').get(function getTags() {
+    return this.body.split(' ').splice(0,3);
   });
 
   commentSchema.set('toJSON', {virtuals: true});

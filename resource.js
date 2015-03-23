@@ -49,7 +49,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     // Promise is always returned regardless if callback is defined
-    return queryBuilder(Model.findOne().where('_id', docId), params).exec(cb);
+    return queryBuilder(Model.findById(docId), params).exec(cb);
   });
 
   schema.static('patchDocById', function patchDocById(docId, patch, params, cb) {
@@ -62,10 +62,33 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // {new: true} to return updated document
-    //   https://github.com/LearnBoost/mongoose/issues/2262
-    // Promise is always returned regardless if callback is defined
-    return queryBuilder(Model.findOneAndUpdate({'_id': docId}, patch, {new: true}), params).exec(cb);
+    // mongoose's findAnd methods skip mongoose validations
+    //   To trigger the validation first retrieve the doc, apply the patch and
+    //   then validate.
+    // http://mongoosejs.com/docs/api.html#model_Model.findOneAndUpdate
+    return Model.readDocById(docId, params).then(function readDocByIdFound(doc) {
+      // `null` if parent document wasn't found
+      if (doc === null) {
+        if (cb) { return cb(null, doc); }
+
+        return doc;
+      }
+
+      var promise = new Model.base.Promise();
+
+      doc.set(patch).validate(function (err) {
+        promise.resolve(err);
+      });
+
+      return promise.then(function patchDocByIdValidated() {
+        // {new: true} to return updated document
+        //   https://github.com/LearnBoost/mongoose/issues/2262
+        // Promise is always returned regardless if callback is defined
+        return queryBuilder(Model.findByIdAndUpdate(docId, patch, {new: true}), params).exec(cb);
+      });
+    }).then(null, function patchDocByIdError(err) {
+      if (cb) { return cb(err); }
+    });
   });
 
   schema.static('destroyDocById', function destroyDocById(docId, params, cb) {
@@ -79,10 +102,12 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     // Promise is always returned regardless if callback is defined
-    return queryBuilder(Model.findOneAndRemove({'_id': docId}), params).exec(cb);
+    return queryBuilder(Model.findByIdAndRemove(docId), params).exec(cb);
   });
 
   // Model methods for subdocument collections
+
+  // TODO: honor subdoc field select options in schemas
 
   // Need to fetch collection object from parent, push child document,
   //   save parent document and then fetch new child document to apply
@@ -174,7 +199,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     }
 
     // TODO: utilize aggregation to allow for sorting, paging, etc.
-    // Main issue is once a subdocument is unwound, the returned objects are POJOs
+    // Main issue is mongoose can't update arrays using projections
     return Model.readDocById(docId, queryParams).then(function readDocByIdFound(doc) {
       var coll = (doc && doc.get(collPath)) || null;
 
@@ -188,6 +213,8 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
   schema.static('readCollDocById', function readCollDocById(docId, collPath, collId, params, cb) {
     var Model = this;
+    var select = {};
+    select[collPath] = {$elemMatch: {_id: collId}};
 
     // Arity check
     if (arguments.length === 4 && _.isFunction(params)) {
@@ -196,10 +223,9 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Only return the desired subdocument
-    // TODO: utilize aggregation to remove overhead of returning entire collection
-    return Model.readCollDocs(docId, collPath, params).then(function readCollDocsFound(coll) {
-      var collDoc = (coll && coll.id(collId)) || null;
+    // Promise is always returned regardless if callback is defined
+    return queryBuilder(Model.findById(docId).select(select), params).exec().then(function readCollDocsFound(coll) {
+      var collDoc = ((coll && coll.get(collPath) || [])[0]) || null;
 
       if (cb) { cb(null, collDoc); }
 
@@ -215,7 +241,16 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
   //   will need to monitor for performance concerns
   schema.static('patchCollDocById', function patchCollDocById(docId, collPath, collId, collPatch, params, cb) {
     var Model = this;
-    var collParams;
+    var query = {_id: docId};
+    var select = {};
+    var patch = {};
+
+    select[collPath] = {$elemMatch: {_id: collId}};
+    query[collPath] = {$elemMatch: {_id: collId}};
+
+    Object.keys(collPatch).forEach(function mapPatch(key) {
+      patch[collPath + '.$.' + key] = collPatch[key];
+    });
 
     // Arity check
     if (arguments.length === 5) {
@@ -224,30 +259,33 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Clone and overwrite select for only _id for performance
-    collParams = _.merge({}, params, {select: {_id: 1}});
-    collParams.select[collPath + '._id'] = 1;
+    return Model.readCollDocById(docId, collPath, collId, params).then(function readCollDocByIdFound(collDoc) {
+      // `null` if collection document wasn't found
+      if (collDoc === null) {
+        if (cb) { return cb(null, collDoc); }
 
-    return Model.readCollDocById(docId, collPath, collId, collParams).then(function readCollDocByIdFound(collDoc) {
-      // No document found
-      // Pass to next `then` if null
-      if (collDoc === null) { return collDoc; }
-
-      collDoc.set(collPatch);
-
-      return collDoc.parent().save();
-    }).then(function patchCollDocByIdSaved(doc) {
-      // `null` if parent document wasn't found
-      if (doc === null) {
-        if (cb) { return cb(null, doc); }
-
-        return doc;
+        return collDoc;
       }
 
-      collParams = _.clone(params, true);
-      delete collParams.where;
+      var promise = new Model.base.Promise();
 
-      return Model.readCollDocById(docId, collPath, collId, collParams, cb);
+      collDoc.set(collPatch).validate(function (err) {
+        promise.resolve(err);
+      });
+
+      return promise.then(function patchCollDocByIdValidated() {
+        // {new: true} to return updated document
+        //   https://github.com/LearnBoost/mongoose/issues/2262
+        // Promise is always returned regardless if callback is defined;
+        return queryBuilder(Model.findOneAndUpdate(query, patch, {new: true}).select(select), params).exec().then(function patchCollDocByIdUpdated(coll) {
+          // `null` if collection  wasn't found
+          collDoc = ((coll && coll.get(collPath) || [])[0]) || null;
+
+          if (cb) { cb(null, collDoc); }
+
+          return collDoc;
+        });
+      });
     }).then(null, function patchCollDocByIdError(err) {
       if (cb) { cb(err); }
     });
@@ -259,7 +297,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
   //   will need to monitor for performance concerns
   schema.static('destroyCollDocById', function destroyCollDocById(docId, collPath, collId, params, cb) {
     var Model = this;
-    var collParams;
+    var select = {};
+    var patch = {$pull: {}};
+
+    select[collPath] = {$elemMatch: {_id: collId}};
+    patch.$pull[collPath] = {_id: collId};
 
     // Arity check
     if (arguments.length === 4) {
@@ -268,23 +310,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       params = {};
     }
 
-    // Clone and overwrite select for only _id for performance
-    collParams = _.merge({}, params, {select: {_id: 1}});
-    collParams.select[collPath + '._id'] = 1;
+    return queryBuilder(Model.findByIdAndUpdate(docId, patch).select(select), params).exec().then(function patchCollDocByIdUpdated(coll) {
+      // `null` if collection wasn't found
+      var collDoc = ((coll && coll.get(collPath) || [])[0]) || null;
 
-    return Model.readCollDocById(docId, collPath, collId, collParams).then(function readCollDocByIdFound(collDoc) {
-      // No document found
-      // Pass to next `then` if null
-      if (collDoc === null) { return collDoc; }
-
-      collDoc.remove();
-
-      return collDoc.parent().save().then(function destroyCollDocByIdSaved(doc) {
-        // `null` if parent document wasn't found
-        return doc && collDoc;
-      });
-    }).then(function desctroyCollDocByIdCallBackCheck(collDoc) {
-      if (cb) { return cb(null, collDoc); }
+      if (cb) { cb(null, collDoc); }
 
       return collDoc;
     }).then(null, function destroyCollDocByIdError(err) {
