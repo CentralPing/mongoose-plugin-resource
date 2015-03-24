@@ -106,7 +106,7 @@ describe('Mongoose plugin: resource', function () {
     done();
   });
 
-  describe('with document', function () {
+  describe('with documents', function () {
     var ids = [];
 
     beforeAll(function (done) {
@@ -191,6 +191,14 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`readDocById` should not fetch a document with arity of 2 and unknown ID', function (done) {
+      BlogAnon.readDocById(mongoose.Types.ObjectId(), function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
     it('`readDocById` should fetch a document with arity of 2', function (done) {
       BlogAnon.readDocById(ids[0], function (err, blog) {
         expect(err).toBe(null);
@@ -211,6 +219,14 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`readDocById` should not fetch a document with arity of 3 and unknown ID', function (done) {
+      BlogAnon.readDocById(mongoose.Types.ObjectId(), {}, function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
     it('`readDocById` should fetch a document with arity of 3', function (done) {
       BlogAnon.readDocById(ids[1], {}, function (err, blog) {
         expect(err).toBe(null);
@@ -220,7 +236,15 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should not patch an existing document without required fields', function (done) {
+    it('`patchDocById` should not patch a document with arity of 3 and unknown ID', function (done) {
+      BlogAnon.patchDocById(mongoose.Types.ObjectId(), blogPatch, function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchDocById` should not patch a document with arity of 3 and without required fields', function (done) {
       BlogAnon.patchDocById(ids[0], {title: undefined}, function (err, blog) {
         expect(err).not.toBe(null);
         expect(Object.keys(err.errors).sort()).toEqual(['title']);
@@ -229,7 +253,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should patch an existing document with arity of 3', function (done) {
+    it('`patchDocById` should patch a document with arity of 3', function (done) {
       BlogAnon.patchDocById(ids[0], blogPatch, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -251,7 +275,15 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should patch an existing document with arity of 4', function (done) {
+    it('`patchDocById` should not patch a document with arity of 4 and unknown ID', function (done) {
+      BlogAnon.patchDocById(mongoose.Types.ObjectId(), blogPatch, {}, function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchDocById` should patch a document with arity of 4', function (done) {
       BlogAnon.patchDocById(ids[1], blogPatch, {}, function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -262,7 +294,15 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`destroyDocById` should destroy an existing document with arity of 2', function (done) {
+    it('`destroyDocById` should not destroy a document with arity of 2 and unknown ID', function (done) {
+      BlogAnon.destroyDocById(mongoose.Types.ObjectId(), function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyDocById` should destroy a document with arity of 2', function (done) {
       BlogAnon.destroyDocById(ids[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -421,7 +461,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should not patch an existing document with arity of 4 and wrong document owner', function (done) {
+    it('`patchDocById` should not patch a document with arity of 4 and wrong document owner', function (done) {
       Blog.patchDocById(ids[0], blogPatch, ownerChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
@@ -429,7 +469,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should patch an existing document with arity of 4 and correct document owner', function (done) {
+    it('`patchDocById` should patch a document with arity of 4 and correct document owner', function (done) {
       Blog.patchDocById(ids[0], blogPatch, ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -440,7 +480,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchDocById` should patch an existing document with arity of 5 and correct document owner', function (done) {
+    it('`patchDocById` should patch a document with arity of 5 and correct document owner', function (done) {
       Blog.patchDocById(ids[1], blogPatch, ownerChecks[1], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -451,7 +491,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`destroyDocById` should destroy an existing document with arity of 3 and correct document owner', function (done) {
+    it('`destroyDocById` should destroy a document with arity of 3 and correct document owner', function (done) {
       Blog.destroyDocById(ids[0], ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toEqual(jasmine.any(Object));
@@ -459,7 +499,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`destroyDocById` should not destroy an existing document with arity of 3 and wrong document owner', function (done) {
+    it('`destroyDocById` should not destroy a document with arity of 3 and wrong document owner', function (done) {
       Blog.destroyDocById(ids[1], ownerChecks[0], function (err, blog) {
         expect(err).toBe(null);
         expect(blog).toBe(null);
@@ -663,6 +703,223 @@ describe('Mongoose plugin: resource', function () {
     });
   });
 
+  describe('with document promises', function () {
+    var ids = [];
+
+    beforeAll(function (done) {
+      BlogAnon.collection.remove(function () {
+        done();
+      });
+    });
+
+    it('`createDoc` should not create a new document without required fields', function (done) {
+      BlogAnon.createDoc({}).onResolve(function (err, blog) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['title']);
+        expect(blog).toBeUndefined();
+        done();
+      });
+    });
+
+    it('`createDoc` should create a new document with arity of 1', function (done) {
+      BlogAnon.createDoc(blogData).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
+        expect(blog.id).toBeDefined();
+        expect(blog.title).toEqual(blogData.title);
+        expect(blog.blog).toEqual(blogData.blog);
+        expect(blog.tags).toEqual(blogData.blog.split(' ').splice(0,3));
+        expect(blog.__v).toBeDefined();
+        ids.push(blog.id);
+        done();
+      });
+    });
+
+    it('`createDoc` should create a new document with arity of 2', function (done) {
+      BlogAnon.createDoc(blogData, {}).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+        expect(blog.id).toBeDefined();
+        expect(blog.title).toEqual(blogData.title);
+        expect(blog.blog).toEqual(blogData.blog);
+        expect(blog.__v).toBeDefined();
+        ids.push(blog.id);
+        done();
+      });
+    });
+
+    it('`readDocs` should fetch a list of documents with arity of 0', function (done) {
+      BlogAnon.readDocs().onResolve(function (err, blogs) {
+        expect(err).toBe(null);
+        expect(blogs).toEqual(jasmine.any(Array));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blogs[0]))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
+        expect(blogs.length).toBe(2);
+        done();
+      });
+    });
+
+    it('`readDocs` should fetch a list of documents with arity of 1', function (done) {
+      BlogAnon.readDocs({}).onResolve(function (err, blogs) {
+        expect(err).toBe(null);
+        expect(blogs).toEqual(jasmine.any(Array));
+        expect(blogs.length).toBe(2);
+        done();
+      });
+    });
+
+    it('`readDocById` should not fetch a document with arity of 1 and unknown ID', function (done) {
+      BlogAnon.readDocById(mongoose.Types.ObjectId()).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`readDocById` should fetch a document with arity of 1', function (done) {
+      BlogAnon.readDocById(ids[0]).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
+        expect(blog.id).toBe(ids[0]);
+        done();
+      });
+    });
+
+    it('`readDocById` should not fetch a document with arity of 2 and unknown ID', function (done) {
+      BlogAnon.readDocById(mongoose.Types.ObjectId(), {}).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`readDocById` should fetch a document with arity of 2', function (done) {
+      BlogAnon.readDocById(ids[1], {}).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+        expect(blog.id).toBe(ids[1]);
+        done();
+      });
+    });
+
+    it('`patchDocById` should not patch a document with arity of 2 and unknown ID', function (done) {
+      BlogAnon.patchDocById(mongoose.Types.ObjectId(), blogPatch).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchDocById` should not patch a document with arity of 2 and without required fields', function (done) {
+      BlogAnon.patchDocById(ids[0], {title: undefined}).onResolve(function (err, blog) {
+        expect(err).toEqual(jasmine.any(Object));
+        expect(Object.keys(err.errors).sort()).toEqual(['title']);
+        expect(blog).toBeUndefined();
+        done();
+      });
+    });
+
+    it('`patchDocById` should patch a document with arity of 2', function (done) {
+      BlogAnon.patchDocById(ids[0], blogPatch).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
+        expect(blog.id).toBe(ids[0]);
+        expect(blog.title).toEqual(blogData.title);
+        expect(blog.blog).toEqual(blogPatch.blog);
+        done();
+      });
+    });
+
+    it('`patchDocById` should not patch a document with arity of 3 and unknown ID', function (done) {
+      BlogAnon.patchDocById(mongoose.Types.ObjectId(), blogPatch, {}).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchDocById` should patch a document with arity of 3', function (done) {
+      BlogAnon.patchDocById(ids[1], blogPatch, {}).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+        expect(blog.id).toBe(ids[1]);
+        expect(blog.title).toEqual(blogData.title);
+        expect(blog.blog).toEqual(blogPatch.blog);
+        done();
+      });
+    });
+
+    it('`destroyDocById` should not destroy a document with arity of 1 and unknown ID', function (done) {
+      BlogAnon.destroyDocById(mongoose.Types.ObjectId()).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyDocById` should destroy a document with arity of 1', function (done) {
+      BlogAnon.destroyDocById(ids[0]).onResolve(function (err, blog) {
+        expect(err).toBe(null);
+        expect(blog).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        expect(Object.keys(JSON.parse(JSON.stringify(blog))).sort()).toEqual([
+          '__v',
+          '_id',
+          'blog',
+          'id',
+          'tags',
+          'title'
+        ]);
+
+        done();
+      });
+    });
+  });
+
+  // TODO: test for correct subdoc fields to be returned
   describe('with subdocument collections', function () {
     var subdocParams = {};
     var blogIds = [];
@@ -729,6 +986,22 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`readCollDocs` should not fetch subdocuments with arity of 3 and with unknown ID', function (done) {
+      BlogAnon.readCollDocs(mongoose.Types.ObjectId(), 'comments', function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 3 and with unknown path', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'foo', function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
     it('`readCollDocs` should fetch subdocuments with arity of 3', function (done) {
       BlogAnon.readCollDocs(blogIds[0], 'comments', function (err, comments) {
         expect(err).toBe(null);
@@ -747,6 +1020,22 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
+    it('`readCollDocs` should not fetch subdocuments with arity of 4 and with unknown ID', function (done) {
+      BlogAnon.readCollDocs(mongoose.Types.ObjectId(), 'comments', subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 4 and with unknown path', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'foo', subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
     it('`readCollDocs` should fetch subdocuments with arity of 4', function (done) {
       BlogAnon.readCollDocs(blogIds[0], 'comments', subdocParams, function (err, comments) {
         expect(err).toBe(null);
@@ -756,7 +1045,23 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`readCollDocById` should fetch subdocuments with arity of 4', function (done) {
+    it('`readCollDocById` should not fetch a subdocument with arity of 4 and with unknown ID', function (done) {
+      BlogAnon.readCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 4 and with unknown path', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'foo', comments[0].id, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should fetch a subdocument with arity of 4', function (done) {
       BlogAnon.readCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
@@ -775,7 +1080,23 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`readCollDocById` should fetch subdocuments with arity of 5', function (done) {
+    it('`readCollDocById` should not fetch a subdocument with arity of 5 and with unknown ID', function (done) {
+      BlogAnon.readCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 5 and with unknown path', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'foo', comments[0].id, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should fetch a subdocument with arity of 5', function (done) {
       BlogAnon.readCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
@@ -785,7 +1106,27 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchCollDocById` should not patch subdocument without required fields', function (done) {
+    it('`patchCollDocById` should not patch a subdocument with arity of 5 and with unknown ID', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, {body: text}, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 5 and with unknown path', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'foo', comments[0].id, {body: text}, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 5 and without required fields', function (done) {
       BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: undefined}, function (err, comment) {
         expect(err).not.toBe(null);
         expect(Object.keys(err.errors).sort()).toEqual(['comments.0.body']);
@@ -794,7 +1135,7 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchCollDocById` should patch subdocument with arity of 5', function (done) {
+    it('`patchCollDocById` should patch a subdocument with arity of 5', function (done) {
       var text = faker.lorem.paragraph();
 
       BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}, function (err, comment) {
@@ -815,7 +1156,27 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`patchCollDocById` should patch subdocument with arity of 6', function (done) {
+    it('`patchCollDocById` should not patch a subdocument with arity of 6 and with unknown ID', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, {body: text}, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 6 and with unknown path', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'foo', comments[0].id, {body: text}, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should patch a subdocument with arity of 6', function (done) {
       var text = faker.lorem.paragraph();
 
       BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[1].id, {body: text}, subdocParams, function (err, comment) {
@@ -827,7 +1188,23 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`destroyCollDocById` should destroy an existing subdocument with arity of 4', function (done) {
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 4 and with unknown ID', function (done) {
+      BlogAnon.destroyCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 4 and with unknown path', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'foo', comments[0].id, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should destroy a subdocument with arity of 4', function (done) {
       BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[0].id, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
@@ -845,7 +1222,23 @@ describe('Mongoose plugin: resource', function () {
       });
     });
 
-    it('`destroyCollDocById` should destroy an existing subdocument with arity of 5', function (done) {
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 5 and with unknown ID', function (done) {
+      BlogAnon.destroyCollDocById(mongoose.Types.ObjectId(), 'comments', comments[1].id, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 5 and with unknown path', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'foo', comments[1].id, subdocParams, function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should destroy a subdocument with arity of 5', function (done) {
       BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams, function (err, comment) {
         expect(err).toBe(null);
         expect(comment).toEqual(jasmine.any(Object));
@@ -1273,6 +1666,334 @@ describe('Mongoose plugin: resource', function () {
           expect(comments[i + 5].id).toBe(comment.id);
         });
 
+        done();
+      });
+    });
+  });
+
+  describe('with subdocument collections promises', function () {
+    var subdocParams = {};
+    var blogIds = [];
+    var comments = [];
+
+    beforeAll(function (done) {
+      BlogAnon.collection.remove(function () {
+        done();
+      });
+    });
+
+    // create parent doc
+    beforeAll(function (done) {
+      BlogAnon.createDoc(blogData, function (err, blog) {
+        blogIds.push(blog.id);
+        done();
+      });
+    });
+
+    it('`createCollDoc` should not create a new subdocument without required fields', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {}).onResolve(function (err, comment) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['comments.0.body']);
+        expect(comment).toBeUndefined();
+        done();
+      });
+    });
+
+    it('`createCollDoc` should create a new subdocument with arity of 3', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: text}).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
+        expect(comment.id).toBeDefined();
+        expect(comment.body).toBe(text);
+        expect(comment.tags).toEqual(text.split(' ').splice(0,3));
+        comments.push(comment);
+        done();
+      });
+    });
+
+    it('`createCollDoc` should create a new subdocument with arity of 4', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.createCollDoc(blogIds[0], 'comments', {body: text}, subdocParams).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+        expect(comment.id).toBeDefined();
+        expect(comment.body).toBe(text);
+        comments.push(comment);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 2 and with unknown ID', function (done) {
+      BlogAnon.readCollDocs(mongoose.Types.ObjectId(), 'comments').onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 2 and with unknown path', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'foo').onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should fetch subdocuments with arity of 2', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'comments').onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toEqual(jasmine.any(Array));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comments[0]))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
+        expect(comments.length).toBe(2);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 3 and with unknown ID', function (done) {
+      BlogAnon.readCollDocs(mongoose.Types.ObjectId(), 'comments', subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should not fetch subdocuments with arity of 3 and with unknown path', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'foo', subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocs` should fetch subdocuments with arity of 3', function (done) {
+      BlogAnon.readCollDocs(blogIds[0], 'comments', subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toEqual(jasmine.any(Array));
+        expect(comments.length).toBe(2);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 3 and with unknown ID', function (done) {
+      BlogAnon.readCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 3 and with unknown path', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'foo', comments[0].id).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should fetch subdocuments with arity of 3', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'comments', comments[0].id).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(comments[0].body);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 4 and with unknown ID', function (done) {
+      BlogAnon.readCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should not fetch a subdocument with arity of 4 and with unknown path', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'foo', comments[0].id, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`readCollDocById` should fetch subdocuments with arity of 4', function (done) {
+      BlogAnon.readCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(comments[1].body);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 4 and with unknown ID', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, {body: text}).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 4 and with unknown path', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'foo', comments[0].id, {body: text}).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch subdocument with arity of 4 and without required fields', function (done) {
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: undefined}).onResolve(function (err, comment) {
+        expect(err).not.toBe(null);
+        expect(Object.keys(err.errors).sort()).toEqual(['comments.0.body']);
+        expect(comment).toBeUndefined();
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should patch subdocument with arity of 4', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[0].id, {body: text}).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
+        expect(comment.id).toBe(comments[0].id);
+        expect(comment.body).toBe(text);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 5 and with unknown ID', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(mongoose.Types.ObjectId(), 'comments', comments[0].id, {body: text}, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should not patch a subdocument with arity of 5 and with unknown path', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'foo', comments[0].id, {body: text}, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`patchCollDocById` should patch subdocument with arity of 5', function (done) {
+      var text = faker.lorem.paragraph();
+
+      BlogAnon.patchCollDocById(blogIds[0], 'comments', comments[1].id, {body: text}, subdocParams).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+        expect(comment.id).toBe(comments[1].id);
+        expect(comment.body).toBe(text);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 3 and with unknown ID', function (done) {
+      BlogAnon.destroyCollDocById(mongoose.Types.ObjectId(), 'comments', comments[1].id).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 3 and with unknown path', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'foo', comments[1].id).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should destroy a subdocument with arity of 3', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[0].id).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+
+        // trigger Mongoose's toJSON transformations
+        //expect(Object.keys(JSON.parse(JSON.stringify(comment))).sort()).toEqual([
+        //  '_id',
+        //  'body',
+        //  'id',
+        //  'tags'
+        //]);
+
+        expect(comment.id).toBe(comments[0].id);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 4 and with unknown ID', function (done) {
+      BlogAnon.destroyCollDocById(mongoose.Types.ObjectId(), 'comments', comments[1].id, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should not destroy a subdocument with arity of 4 and with unknown path', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'foo', comments[1].id, subdocParams).onResolve(function (err, comments) {
+        expect(err).toBe(null);
+        expect(comments).toBe(null);
+        done();
+      });
+    });
+
+    it('`destroyCollDocById` should destroy a subdocument with arity of 4', function (done) {
+      BlogAnon.destroyCollDocById(blogIds[0], 'comments', comments[1].id, subdocParams).onResolve(function (err, comment) {
+        expect(err).toBe(null);
+        expect(comment).toEqual(jasmine.any(Object));
+        expect(comment.id).toBe(comments[1].id);
         done();
       });
     });

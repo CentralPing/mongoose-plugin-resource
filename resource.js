@@ -21,6 +21,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return Model.readDocById(doc.id, params, cb);
     }).then(null, function createDocErr(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 
@@ -88,6 +89,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       });
     }).then(null, function patchDocByIdError(err) {
       if (cb) { return cb(err); }
+      throw err;
     });
   });
 
@@ -119,8 +121,12 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     var collParams = {select: {_id: 1}};
 
     // Arity check
-    if (arguments.length === 4 && _.isFunction(params)) {
-      // MODEL.createCollDoc(docId, collPath, collDoc, cb)
+    if (arguments.length === 3 && _.isPlainObject(collObj)) {
+      // MODEL.createCollDoc(docId, collPath, collObj)
+      params = {};
+    }
+    else if (arguments.length === 4 && _.isFunction(params)) {
+      // MODEL.createCollDoc(docId, collPath, collObj, cb)
       cb = params;
       params = {};
     }
@@ -159,6 +165,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return Model.readCollDocById(docId, collPath, collDocId, collParams, cb);
     }).then(null, function createCollDocError(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 
@@ -168,7 +175,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     var collPathId = {};
 
     // Arity check
-    if (arguments.length === 3 && _.isFunction(params)) {
+    if (arguments.length === 2 && _.isString(collPath)) {
+      // MODEL.readCollDocs(docId, collPath)
+      params = {};
+    }
+    else if (arguments.length === 3 && _.isFunction(params)) {
       // MODEL.readCollDocs(docId, collPath, cb)
       cb = params;
       params = {};
@@ -208,6 +219,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return coll;
     }).then(null, function readCollDocsError(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 
@@ -217,7 +229,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     select[collPath] = {$elemMatch: {_id: collId}};
 
     // Arity check
-    if (arguments.length === 4 && _.isFunction(params)) {
+    if (arguments.length === 3 && _.isString(collId)) {
+      // MODEL.readCollDocById(docId, collPath, collId)
+      params = {};
+    }
+    else if (arguments.length === 4 && _.isFunction(params)) {
       // MODEL.readCollDocById(docId, collPath, collId, cb)
       cb = params;
       params = {};
@@ -232,6 +248,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return collDoc;
     }).then(null, function readCollDocByIdError(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 
@@ -253,7 +270,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     });
 
     // Arity check
-    if (arguments.length === 5) {
+    if (arguments.length === 4 && _.isPlainObject(collPatch)) {
+      // MODEL.patchCollDocById(docId, collPath, collId, collPatch)
+      params = {};
+    }
+    else if (arguments.length === 5 && _.isFunction(params)) {
       // MODEL.patchCollDocById(docId, collPath, collId, patch, cb)
       cb = params;
       params = {};
@@ -288,6 +309,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       });
     }).then(null, function patchCollDocByIdError(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 
@@ -304,7 +326,11 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
     patch.$pull[collPath] = {_id: collId};
 
     // Arity check
-    if (arguments.length === 4) {
+    if (arguments.length === 3 && _.isString(collId)) {
+      // MODEL.destroyCollDocById(docId, collPath, collId)
+      params = {};
+    }
+    else if (arguments.length === 4 && _.isFunction(params)) {
       // MODEL.destroyCollDocById(docId, collPath, collId, cb)
       cb = params;
       params = {};
@@ -319,6 +345,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       return collDoc;
     }).then(null, function destroyCollDocByIdError(err) {
       if (cb) { cb(err); }
+      throw err;
     });
   });
 };

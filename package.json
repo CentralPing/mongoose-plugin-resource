@@ -1,6 +1,6 @@
 {
   "name": "mongoose-plugin-resource",
-  "version": "1.1.0-rc1",
+  "version": "1.1.0-rc2",
   "description": "Mongoose.js plugin to add REST-type resource methods to models.",
   "main": "resource.js",
   "dependencies": {
