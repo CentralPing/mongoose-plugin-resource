@@ -4,7 +4,7 @@
   "description": "Mongoose.js plugin to add REST-type resource methods to models.",
   "main": "resource.js",
   "dependencies": {
-    "lodash-node": "^3.5.0"
+    "lodash-node": "^3.6.0"
   },
   "devDependencies": {
     "async": "^0.9.0",
