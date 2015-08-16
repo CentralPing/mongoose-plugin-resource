@@ -77,16 +77,7 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
 
       var promise = new Model.base.Promise();
 
-      doc.set(patch).validate(function (err) {
-        promise.resolve(err);
-      });
-
-      return promise.then(function patchDocByIdValidated() {
-        // {new: true} to return updated document
-        //   https://github.com/LearnBoost/mongoose/issues/2262
-        // Promise is always returned regardless if callback is defined
-        return queryBuilder(Model.findByIdAndUpdate(docId, patch, {new: true}), params).exec(cb);
-      });
+      return doc.set(patch).save(cb);
     }).then(null, function patchDocByIdError(err) {
       if (cb) { return cb(err); }
       throw err;
