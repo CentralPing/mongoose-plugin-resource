@@ -132,8 +132,6 @@ module.exports = function resourceControlPlugin(schema, pluginOptions) {
       // Pass to next `then` if null
       if (coll === null) { return coll; }
 
-      collection = coll;
-
       // Add to collection
       // Pushing casts the object to a model instance
       coll.push(collObj);
