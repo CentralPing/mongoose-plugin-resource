@@ -7,15 +7,15 @@
     "lodash-node": "^3.6.0"
   },
   "devDependencies": {
-    "async": "^0.9.0",
-    "faker": "^2.1.2",
+    "async": "^1.4.2",
+    "faker": "^3.0.1",
     "gulp": "^3.8.11",
     "gulp-debug": "^2.0.1",
     "gulp-if": "^1.2.5",
     "gulp-jasmine": "^2.0.1",
     "gulp-jshint": "^1.10.0",
-    "gulp-todo": "^2.5.1",
-    "mongoose": "^4.0.1",
+    "gulp-todo": "^3.2.0",
+    "mongoose": "^4.1.2",
     "yargs": "^3.7.0"
   },
   "peerDependencies": {
@@ -35,7 +35,7 @@
     "REST"
   ],
   "author": "Jason Cust <jason@centralping.com>",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/CentralPing/mongoose-plugin-resource/issues"
   },
